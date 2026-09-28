@@ -13,6 +13,7 @@ const tradeSchema = new mongoose.Schema(
     risk: { type: Number, default: 0 },
     pnl: { type: Number, default: 0 },
     rr: { type: String, default: '' },
+    rrMode: { type: String, enum: ['auto', 'manual'], default: 'auto' },
     reason: { type: String, default: '' },
     screenshot: { type: String, default: 'Attached' },
     notes: { type: String, default: '' },

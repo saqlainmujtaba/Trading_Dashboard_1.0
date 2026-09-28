@@ -199,7 +199,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh }) => {
         pair: normalizedPair,
       }),
       rr: Number(tradeForm.rr) || 0,
-      rrMode: undefined,
+      rrMode: tradeForm.rrMode,
       customPair: undefined,
     };
 

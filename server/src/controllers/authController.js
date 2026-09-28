@@ -4,6 +4,31 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 
 const inMemoryUsers = [];
+const profileFields = [
+  'fullName',
+  'tradingAlias',
+  'phone',
+  'city',
+  'country',
+  'timezone',
+  'riskProfile',
+  'tradingStyle',
+  'experience',
+  'primaryMarkets',
+  'strategy',
+  'preferredPairs',
+  'bio',
+  'goals',
+  'customFields',
+];
+
+const findUserById = async (id) => {
+  if (mongoose.connection.readyState === 1) {
+    return User.findById(id);
+  }
+
+  return inMemoryUsers.find((user) => user._id === id);
+};
 
 const ensureDemoUser = async () => {
   if (inMemoryUsers.some((user) => user.email === 'demo@trading.com')) {
@@ -137,4 +162,64 @@ export const getMe = async (req, res) => {
     name: req.user.name,
     email: req.user.email,
   });
+};
+
+export const getTraderProfile = async (req, res) => {
+  try {
+    const user = await findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      ...(user.profile || {}),
+      fullName: user.profile?.fullName || user.name,
+      email: user.email,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not load trader profile', error: error.message });
+  }
+};
+
+export const updateTraderProfile = async (req, res) => {
+  try {
+    const user = await findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (typeof req.body?.email === 'string' && req.body.email !== user.email) {
+      return res.status(400).json({ message: 'Email cannot be changed' });
+    }
+
+    const updates = Object.fromEntries(
+      profileFields
+        .filter((field) => Object.hasOwn(req.body || {}, field))
+        .map((field) => [field, req.body[field]])
+    );
+
+    if (Array.isArray(updates.customFields)) {
+      updates.customFields = updates.customFields
+        .filter((field) => field && typeof field === 'object')
+        .map((field) => ({
+          id: String(field.id || ''),
+          label: String(field.label || ''),
+          value: String(field.value || ''),
+        }))
+        .filter((field) => field.label && field.value);
+    }
+
+    user.profile = { ...(user.profile || {}), ...updates };
+    if (mongoose.connection.readyState === 1) {
+      await user.save();
+    }
+
+    res.json({
+      ...user.profile,
+      fullName: user.profile.fullName || user.name,
+      email: user.email,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not save trader profile', error: error.message });
+  }
 };

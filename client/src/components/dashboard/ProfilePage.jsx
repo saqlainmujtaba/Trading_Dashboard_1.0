@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../api';
 import Sidebar from '../layout/Sidebar';
 
 const defaultProfileData = {
@@ -35,7 +36,12 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
     }
 
     try {
-      return { ...defaultProfileData, ...JSON.parse(saved) };
+      const savedProfile = JSON.parse(saved);
+      return {
+        ...defaultProfileData,
+        ...savedProfile,
+        email: user?.email || savedProfile.email || '',
+      };
     } catch {
       return {
         ...defaultProfileData,
@@ -47,10 +53,36 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
   const [customField, setCustomField] = useState(emptyCustomField);
   const [isEditing, setIsEditing] = useState(false);
   const [draftProfile, setDraftProfile] = useState(profile);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     localStorage.setItem('profileData', JSON.stringify(profile));
   }, [profile]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const response = await api.get('/auth/profile');
+        if (!isMounted) return;
+
+        const loadedProfile = {
+          ...defaultProfileData,
+          ...response.data,
+          email: user?.email || response.data.email || '',
+        };
+        setProfile(loadedProfile);
+        setDraftProfile(loadedProfile);
+      } catch (error) {
+        console.error('Failed to load trader profile', error);
+      }
+    };
+
+    loadProfile();
+    return () => { isMounted = false; };
+  }, [user?.email]);
 
   const profileSummary = useMemo(() => [
     { label: 'Full Name', value: profile.fullName || 'Not added' },
@@ -69,14 +101,32 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
     setDraftProfile((prev) => ({ ...prev, [field]: value }));
   };
 
-  const saveProfile = () => {
-    localStorage.setItem('profileData', JSON.stringify(draftProfile));
-    setProfile(draftProfile);
-    setIsEditing(false);
+  const saveProfile = async () => {
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      const { email, ...profileUpdates } = draftProfile;
+      const response = await api.put('/auth/profile', profileUpdates);
+      const savedProfile = {
+        ...defaultProfileData,
+        ...response.data,
+        email: user?.email || response.data.email || email,
+      };
+      localStorage.setItem('profileData', JSON.stringify(savedProfile));
+      setProfile(savedProfile);
+      setDraftProfile(savedProfile);
+      setIsEditing(false);
+    } catch (error) {
+      setSaveError(error.response?.data?.message || 'Could not save profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const openProfileEditor = () => {
     setDraftProfile(profile);
+    setSaveError('');
     setIsEditing(true);
   };
 
@@ -200,7 +250,7 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
                 </label>
                 <label className="field-group">
                   <span>Email</span>
-                  <input value={draftProfile.email} onChange={(e) => updateField('email', e.target.value)} />
+                  <input type="email" value={draftProfile.email} readOnly />
                 </label>
                 <label className="field-group">
                   <span>Phone</span>
@@ -307,8 +357,11 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
 
               <div className="form-actions profile-actions">
                 <button type="button" className="secondary-btn" onClick={cancelProfileEdit}>Cancel</button>
-                <button type="button" className="primary-btn" onClick={saveProfile}>Save profile</button>
+                <button type="button" className="primary-btn" onClick={saveProfile} disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save profile'}
+                </button>
               </div>
+              {saveError && <p className="error-text" role="alert">{saveError}</p>}
               </div>
             </div>
           )}

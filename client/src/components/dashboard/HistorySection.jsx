@@ -371,6 +371,7 @@ const HistorySection = ({
                         setTradeForm({
                           ...defaultTradeForm,
                           ...trade,
+                          rrMode: trade.rrMode || 'auto',
                           pair: isCustomPair ? 'CUSTOM' : normalizedPair,
                           customPair: isCustomPair ? normalizedPair : '',
                           rr: Number(trade.rr) || 0,
