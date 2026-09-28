@@ -10,6 +10,8 @@ server/dist/
 # Environment files
 .env
 .env.*
+client/.env
+server/.env
 
 # Logs
 npm-debug.log*
