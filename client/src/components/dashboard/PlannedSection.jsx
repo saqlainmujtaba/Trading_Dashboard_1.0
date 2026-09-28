@@ -1,4 +1,24 @@
+import { useState } from 'react';
 import FormField from '../common/FormField';
+import SortControl from '../common/SortControl';
+import { sortRows } from '../common/sortRows';
+
+const plannedSortOptions = [
+  { value: 'company.asc', label: 'Company: A to Z' },
+  { value: 'company.desc', label: 'Company: Z to A' },
+  { value: 'size.desc', label: 'Account size: high to low' },
+  { value: 'size.asc', label: 'Account size: low to high' },
+  { value: 'type.asc', label: 'Challenge type: A to Z' },
+  { value: 'purchaseDate.desc', label: 'Purchase date: newest first' },
+  { value: 'purchaseDate.asc', label: 'Purchase date: oldest first' },
+  { value: 'cost.desc', label: 'Cost: high to low' },
+  { value: 'cost.asc', label: 'Cost: low to high' },
+  { value: 'priority.desc', label: 'Priority: high to low' },
+  { value: 'priority.asc', label: 'Priority: low to high' },
+  { value: 'status.asc', label: 'Status: A to Z' },
+  { value: 'notes.asc', label: 'Notes: A to Z' },
+  { value: 'notes.desc', label: 'Notes: Z to A' },
+];
 
 const PlannedSection = ({
   plannedAccounts,
@@ -13,11 +33,16 @@ const PlannedSection = ({
   showPlannedForm,
   setShowPlannedForm,
   confirmDelete,
-}) => (
+}) => {
+  const [sortBy, setSortBy] = useState('priority.desc');
+  const sortedPlannedAccounts = sortRows(plannedAccounts, sortBy);
+
+  return (
   <section id="planned" className="section-block">
     <div className="section-head">
       <h2>Future / Planned Accounts</h2>
       <div className="section-actions">
+        <SortControl value={sortBy} options={plannedSortOptions} onChange={setSortBy} label="Sort planned accounts" />
         <button
           type="button"
           className="primary-btn"
@@ -100,7 +125,7 @@ const PlannedSection = ({
           </tr>
         </thead>
         <tbody>
-          {plannedAccounts.map((item) => (
+          {sortedPlannedAccounts.map((item) => (
             <tr key={item._id}>
               <td>{item.company}</td>
               <td>{formatCurrency(item.size)}</td>
@@ -131,6 +156,7 @@ const PlannedSection = ({
       </table>
     </div>
   </section>
-);
+  );
+};
 
 export default PlannedSection;

@@ -1,4 +1,34 @@
+import { useState } from 'react';
 import FormField from '../common/FormField';
+import SortControl from '../common/SortControl';
+import { sortRows } from '../common/sortRows';
+
+const accountSortOptions = [
+  { value: 'name.asc', label: 'Account name: A to Z' },
+  { value: 'name.desc', label: 'Account name: Z to A' },
+  { value: 'propFirm.asc', label: 'Prop firm: A to Z' },
+  { value: 'propFirm.desc', label: 'Prop firm: Z to A' },
+  { value: 'balance.desc', label: 'Balance: high to low' },
+  { value: 'balance.asc', label: 'Balance: low to high' },
+  { value: 'profit.desc', label: 'Profit: high to low' },
+  { value: 'profit.asc', label: 'Profit: low to high' },
+  { value: 'profitPercent.desc', label: 'Profit %: high to low' },
+  { value: 'profitPercent.asc', label: 'Profit %: low to high' },
+  { value: 'fundedAmount.desc', label: 'Funded amount: high to low' },
+  { value: 'fundedAmount.asc', label: 'Funded amount: low to high' },
+  { value: 'maxDailyLoss.desc', label: 'Daily loss limit: high to low' },
+  { value: 'maxDailyLoss.asc', label: 'Daily loss limit: low to high' },
+  { value: 'maxOverallLoss.desc', label: 'Overall loss limit: high to low' },
+  { value: 'maxOverallLoss.asc', label: 'Overall loss limit: low to high' },
+  { value: 'purchaseDate.desc', label: 'Purchase date: newest first' },
+  { value: 'purchaseDate.asc', label: 'Purchase date: oldest first' },
+  { value: 'nextPayoutDate.asc', label: 'Next payout date: soonest first' },
+  { value: 'nextPayoutDate.desc', label: 'Next payout date: latest first' },
+  { value: 'payoutReceived.desc', label: 'Payout received: high to low' },
+  { value: 'payoutReceived.asc', label: 'Payout received: low to high' },
+  { value: 'status.asc', label: 'Status: A to Z' },
+  { value: 'type.asc', label: 'Account type: A to Z' },
+];
 
 const getProfitAmount = (balance, startingBalance) => Number(balance || 0) - Number(startingBalance || 0);
 
@@ -24,8 +54,10 @@ const AccountSection = ({
   setShowAccountForm,
   confirmDelete,
 }) => {
+  const [sortBy, setSortBy] = useState('name.asc');
   const computedProfit = getProfitAmount(accountForm.balance, accountForm.startingBalance);
   const computedProfitPercent = getProfitPercent(accountForm.fundedAmount, accountForm.balance, accountForm.startingBalance);
+  const sortedAccounts = sortRows(accounts, sortBy);
 
   const handleFieldChange = (field, value) => {
     if (typeof updateAccountField === 'function') {
@@ -49,6 +81,7 @@ const AccountSection = ({
       <div className="section-head">
         <h2>Current Accounts</h2>
         <div className="section-actions">
+          <SortControl value={sortBy} options={accountSortOptions} onChange={setSortBy} label="Sort accounts" />
           <button
             type="button"
             className="primary-btn"
@@ -155,7 +188,7 @@ const AccountSection = ({
       )}
 
       <div className="account-grid">
-        {accounts.map((account) => (
+        {sortedAccounts.map((account) => (
           <article key={account._id || account.id} className="account-card">
             <div className="account-top">
               <div>

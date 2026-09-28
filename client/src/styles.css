@@ -314,7 +314,27 @@ body[data-theme='dark'] .sidebar::before {
 .section-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+}
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.sort-control span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sort-control select {
+  width: auto;
+  min-width: 170px;
+  max-width: 250px;
+  padding: 8px 30px 8px 10px;
+  font-size: 0.82rem;
 }
 .account-grid {
   display: grid;
@@ -376,6 +396,16 @@ th {
 .portfolio-card { padding: 20px; }
 .portfolio-card h3 { margin: 0 0 10px; }
 .portfolio-card p { margin: 0; color: var(--muted); font-weight: 600; }
+.portfolio-metrics {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 9px 14px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.portfolio-metrics span { color: var(--muted); }
+.portfolio-metrics strong { text-align: right; }
 .history-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -932,6 +962,15 @@ th {
   .section-actions {
     width: 100%;
     justify-content: space-between;
+  }
+  .sort-control {
+    flex: 1 1 100%;
+  }
+  .sort-control select {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
   }
   .row-actions,
   .confirm-actions,

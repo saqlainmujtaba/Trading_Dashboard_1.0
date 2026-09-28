@@ -1,5 +1,42 @@
 import { useState } from "react";
 import FormField from "../common/FormField";
+import SortControl from '../common/SortControl';
+import { sortRows } from '../common/sortRows';
+
+const tradeSortOptions = [
+  { value: 'date.desc', label: 'Date: newest first' },
+  { value: 'date.asc', label: 'Date: oldest first' },
+  { value: 'account.asc', label: 'Account: A to Z' },
+  { value: 'account.desc', label: 'Account: Z to A' },
+  { value: 'propFirm.asc', label: 'Prop firm: A to Z' },
+  { value: 'propFirm.desc', label: 'Prop firm: Z to A' },
+  { value: 'pair.asc', label: 'Pair: A to Z' },
+  { value: 'pair.desc', label: 'Pair: Z to A' },
+  { value: 'buySell.asc', label: 'Direction: Buy to Sell' },
+  { value: 'buySell.desc', label: 'Direction: Sell to Buy' },
+  { value: 'risk.desc', label: 'Risk amount: high to low' },
+  { value: 'risk.asc', label: 'Risk amount: low to high' },
+  { value: 'pnl.desc', label: 'Profit / loss: high to low' },
+  { value: 'pnl.asc', label: 'Profit / loss: low to high' },
+  { value: 'rr.desc', label: 'Risk-to-reward: high to low' },
+  { value: 'rr.asc', label: 'Risk-to-reward: low to high' },
+  { value: 'reason.asc', label: 'Setup reason: A to Z' },
+  { value: 'notes.asc', label: 'Notes: A to Z' },
+];
+
+const payoutSortOptions = [
+  { value: 'date.desc', label: 'Date: newest first' },
+  { value: 'date.asc', label: 'Date: oldest first' },
+  { value: 'account.asc', label: 'Account: A to Z' },
+  { value: 'account.desc', label: 'Account: Z to A' },
+  { value: 'amount.desc', label: 'Amount: high to low' },
+  { value: 'amount.asc', label: 'Amount: low to high' },
+  { value: 'method.asc', label: 'Payment method: A to Z' },
+  { value: 'method.desc', label: 'Payment method: Z to A' },
+  { value: 'status.asc', label: 'Status: A to Z' },
+  { value: 'status.desc', label: 'Status: Z to A' },
+];
+
 const HistorySection = ({
   accounts = [],
   trades,
@@ -25,6 +62,10 @@ const HistorySection = ({
   setShowPayoutForm,
   confirmDelete,
 }) => {
+  const [tradeSortBy, setTradeSortBy] = useState('date.desc');
+  const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
+  const sortedTrades = sortRows(trades || [], tradeSortBy);
+  const sortedPayouts = sortRows(payouts || [], payoutSortBy);
   const payoutAccountOptions = [
     ...new Set(accounts.map((account) => account?.name).filter(Boolean)),
   ];
@@ -80,6 +121,7 @@ const HistorySection = ({
         <div className="section-head">
           <h2>Trade History</h2>
           <div className="section-actions">
+            <SortControl value={tradeSortBy} options={tradeSortOptions} onChange={setTradeSortBy} label="Sort trades" />
             <button
               type="button"
               className="primary-btn"
@@ -346,7 +388,7 @@ const HistorySection = ({
               </tr>
             </thead>
             <tbody>
-              {trades.map((trade) => (
+              {sortedTrades.map((trade) => (
                 <tr key={trade._id}>
                   <td>{trade.date}</td>
                   <td>{trade.account}</td>
@@ -412,6 +454,7 @@ const HistorySection = ({
         <div className="section-head">
           <h2>Payouts</h2>
           <div className="section-actions">
+            <SortControl value={payoutSortBy} options={payoutSortOptions} onChange={setPayoutSortBy} label="Sort payouts" />
             <button
               type="button"
               className="primary-btn"
@@ -557,7 +600,7 @@ const HistorySection = ({
         )}
 
         <div className="payout-list">
-          {payouts.map((payout) => (
+          {sortedPayouts.map((payout) => (
             <div key={payout._id} className="payout-card">
               <div>
                 <span className="muted">{payout.date}</span>

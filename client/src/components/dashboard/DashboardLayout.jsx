@@ -281,6 +281,8 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh }) => {
 
         <SummaryCards stats={stats} formatCurrency={formatCurrency} />
 
+        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} />
+
         <AccountSection
           accounts={accounts}
           accountForm={accountForm}
@@ -311,8 +313,6 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh }) => {
           setShowPlannedForm={setShowPlannedForm}
           confirmDelete={confirmDelete}
         />
-
-        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} />
 
         <HistorySection
           accounts={accounts}

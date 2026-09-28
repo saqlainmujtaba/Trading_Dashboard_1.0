@@ -1,6 +1,34 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import SortControl from '../common/SortControl';
+import { sortRows } from '../common/sortRows';
 import Sidebar from '../layout/Sidebar';
+
+const analyticsTradeSortOptions = [
+  { value: 'date.desc', label: 'Date: newest first' },
+  { value: 'date.asc', label: 'Date: oldest first' },
+  { value: 'account.asc', label: 'Account: A to Z' },
+  { value: 'account.desc', label: 'Account: Z to A' },
+  { value: 'pair.asc', label: 'Pair: A to Z' },
+  { value: 'pair.desc', label: 'Pair: Z to A' },
+  { value: 'buySell.asc', label: 'Direction: Buy to Sell' },
+  { value: 'buySell.desc', label: 'Direction: Sell to Buy' },
+  { value: 'pnl.desc', label: 'Profit / loss: high to low' },
+  { value: 'pnl.asc', label: 'Profit / loss: low to high' },
+];
+
+const performanceSortOptions = [
+  { value: 'pnl.desc', label: 'Profit / loss: high to low' },
+  { value: 'pnl.asc', label: 'Profit / loss: low to high' },
+  { value: 'name.asc', label: 'Account: A to Z' },
+  { value: 'name.desc', label: 'Account: Z to A' },
+  { value: 'trades.desc', label: 'Trade count: high to low' },
+  { value: 'trades.asc', label: 'Trade count: low to high' },
+  { value: 'wins.desc', label: 'Wins: high to low' },
+  { value: 'wins.asc', label: 'Wins: low to high' },
+  { value: 'losses.desc', label: 'Losses: high to low' },
+  { value: 'losses.asc', label: 'Losses: low to high' },
+];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-US', {
@@ -21,8 +49,10 @@ const getTradePnl = (trade = {}) => {
 };
 
 const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleTheme }) => {
+  const [tradeSortBy, setTradeSortBy] = useState('date.desc');
+  const [performanceSortBy, setPerformanceSortBy] = useState('pnl.desc');
   const accounts = dashboardData?.accounts || [];
-  const trades = [...(dashboardData?.trades || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const trades = sortRows(dashboardData?.trades || [], tradeSortBy);
 
   const accountPerformance = useMemo(() => {
     const totals = new Map();
@@ -59,6 +89,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
 
     return [...totals.values()].sort((a, b) => b.pnl - a.pnl);
   }, [accounts, trades]);
+  const sortedAccountPerformance = sortRows(accountPerformance, performanceSortBy);
 
   const totalPnL = accountPerformance.reduce((sum, item) => sum + Number(item.pnl || 0), 0);
   const bestAccount = accountPerformance.reduce((best, item) => (!best || item.pnl > best.pnl ? item : best), null);
@@ -110,7 +141,10 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
           <div className="analytics-panel">
             <div className="section-head">
               <h2>Trade History</h2>
-              <span className="section-tag">{trades.length} trades</span>
+              <div className="section-actions">
+                <SortControl value={tradeSortBy} options={analyticsTradeSortOptions} onChange={setTradeSortBy} label="Sort analytics trades" />
+                <span className="section-tag">{trades.length} trades</span>
+              </div>
             </div>
 
             <div className="table-wrap">
@@ -150,12 +184,12 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
           <div className="analytics-panel chart-panel">
             <div className="section-head">
               <h2>Account Performance</h2>
-              <span className="section-tag">By account</span>
+              <SortControl value={performanceSortBy} options={performanceSortOptions} onChange={setPerformanceSortBy} label="Sort account performance" />
             </div>
 
             <div className="account-chart-list">
-              {accountPerformance.length ? (
-                accountPerformance.map((account) => {
+              {sortedAccountPerformance.length ? (
+                sortedAccountPerformance.map((account) => {
                   const height = `${Math.max(18, (Math.abs(account.pnl) / maxAccountValue) * 100)}%`;
 
                   return (
