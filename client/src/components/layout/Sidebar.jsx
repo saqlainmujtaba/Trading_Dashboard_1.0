@@ -3,6 +3,15 @@ import { Link } from 'react-router-dom';
 
 const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  let profileName = '';
+
+  try {
+    profileName = JSON.parse(localStorage.getItem('profileData') || '{}').fullName || '';
+  } catch {
+    profileName = '';
+  }
+
+  const displayName = profileName || user?.name || 'Trader';
 
   const handleNavClick = () => setIsMobileMenuOpen(false);
 
@@ -34,11 +43,12 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
         <a href="/dashboard#portfolio" onClick={handleNavClick}>Portfolio</a>
         <a href="/dashboard#history" onClick={handleNavClick}>History</a>
         <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
+        <Link to="/profile" onClick={handleNavClick}>Profile</Link>
 
         <div className="mobile-sidebar-footer">
           <div className="user-summary">
             <span className="status-dot" />
-            {user?.name || 'Trader'}
+            {displayName}
           </div>
           <button className="secondary-btn" onClick={onToggleTheme}>
             {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
@@ -50,7 +60,7 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
       <div className="sidebar-footer desktop-sidebar-footer">
         <div className="user-summary">
           <span className="status-dot" />
-          {user?.name || 'Trader'}
+          {displayName}
         </div>
         <button className="secondary-btn" onClick={onToggleTheme}>
           {theme === 'light' ? '🌙 Dark' : '☀️ Light'}

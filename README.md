@@ -60,7 +60,7 @@ Before running the app, make sure you have installed:
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/saqlainmujtaba/Trading_Dashboard_1.0.git
 cd "Personal Trading Dashboard"
 ```
 
@@ -197,4 +197,4 @@ This project is for personal and educational use.
 
 ## Author
 
-Your Name / Team Name
+Saqlain Mujtaba

@@ -4,6 +4,7 @@ import api from './api';
 import AuthScreen from './components/auth/AuthScreen';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import TradeAnalyticsPage from './components/dashboard/TradeAnalyticsPage';
+import ProfilePage from './components/dashboard/ProfilePage';
 
 const App = () => {
   const [user, setUser] = useState(() => {
@@ -101,6 +102,29 @@ const App = () => {
             <TradeAnalyticsPage
               user={user}
               dashboardData={dashboardData}
+              onLogout={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setUser(null);
+              }}
+              theme={localStorage.getItem('theme') || 'light'}
+              onToggleTheme={() => {
+                const nextTheme = (localStorage.getItem('theme') || 'light') === 'light' ? 'dark' : 'light';
+                localStorage.setItem('theme', nextTheme);
+                window.location.reload();
+              }}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          user ? (
+            <ProfilePage
+              user={user}
               onLogout={() => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
