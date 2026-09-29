@@ -7,6 +7,10 @@ const connectDB = async () => {
     console.log('MongoDB connected');
     return true;
   } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+
     console.warn('MongoDB connection failed, continuing in local demo mode:', error.message);
     return false;
   }

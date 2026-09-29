@@ -84,11 +84,13 @@ Create a `.env` file in the `server` directory if needed for runtime configurati
 
 ```env
 PORT=5000
+NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/personal-trading-dashboard
 JWT_SECRET=your_secret_key
+CLIENT_URL=http://localhost:5173
 ```
 
-Adjust values according to your environment.
+For deployment, set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, and the deployed frontend origin as `CLIENT_URL`. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Do not commit production secrets.
 
 ## Run the Application
 
