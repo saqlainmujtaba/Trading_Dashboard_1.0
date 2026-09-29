@@ -112,7 +112,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             <h1>Trade Analytics</h1>
           </div>
           <div className="topbar-actions">
-            <Link className="secondary-btn" to="/dashboard">Back to dashboard</Link>
+            <Link className="secondary-btn" to="/">Back to dashboard</Link>
           </div>
         </header>
 

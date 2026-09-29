@@ -18,11 +18,13 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   return (
     <aside className="sidebar">
       <div className="brand-wrap">
-        <div className="brand-badge">PT</div>
-        <div>
-          <h2>Trading</h2>
-          <p>Dashboard</p>
-        </div>
+        <Link to="/" className="brand-home" onClick={handleNavClick} aria-label="Trading dashboard home">
+          <div className="brand-badge">PT</div>
+          <div>
+            <h2>Trading</h2>
+            <p>Dashboard</p>
+          </div>
+        </Link>
         <button
           type="button"
           className="mobile-menu-btn"
@@ -37,11 +39,11 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
       </div>
 
       <nav className={`nav-links ${isMobileMenuOpen ? 'nav-links-open' : ''}`}>
-        <a href="/dashboard#overview" onClick={handleNavClick}>Overview</a>
-        <a href="/dashboard#accounts" onClick={handleNavClick}>Accounts</a>
-        <a href="/dashboard#planned" onClick={handleNavClick}>Planned</a>
-        <a href="/dashboard#portfolio" onClick={handleNavClick}>Portfolio</a>
-        <a href="/dashboard#history" onClick={handleNavClick}>History</a>
+        <Link to="/#overview" onClick={handleNavClick}>Overview</Link>
+        <Link to="/#accounts" onClick={handleNavClick}>Accounts</Link>
+        <Link to="/#planned" onClick={handleNavClick}>Planned</Link>
+        <Link to="/#portfolio" onClick={handleNavClick}>Portfolio</Link>
+        <Link to="/#history" onClick={handleNavClick}>History</Link>
         <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
         <Link to="/profile" onClick={handleNavClick}>Profile</Link>
 

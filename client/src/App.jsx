@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import api from './api';
 import AuthScreen from './components/auth/AuthScreen';
 import DashboardLayout from './components/dashboard/DashboardLayout';
@@ -7,6 +7,7 @@ import TradeAnalyticsPage from './components/dashboard/TradeAnalyticsPage';
 import ProfilePage from './components/dashboard/ProfilePage';
 
 const App = () => {
+  const location = useLocation();
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
@@ -70,30 +71,30 @@ const App = () => {
 
   if (!isReady) return <div className="loading-screen">Loading dashboard...</div>;
 
+  const dashboardPage = user ? (
+    <DashboardLayout
+      user={user}
+      dashboardData={dashboardData}
+      onRefresh={loadDashboardData}
+      onLogout={() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+      }}
+    />
+  ) : (
+    <Navigate to="/" replace />
+  );
+
   return (
     <Routes>
       <Route
         path="/"
-        element={user ? <Navigate to="/dashboard" replace /> : <AuthScreen onAuthSuccess={(userData) => { setUser(userData); loadDashboardData(); }} />}
+        element={user ? dashboardPage : <AuthScreen onAuthSuccess={(userData) => { setUser(userData); loadDashboardData(); }} />}
       />
       <Route
         path="/dashboard"
-        element={
-          user ? (
-            <DashboardLayout
-              user={user}
-              dashboardData={dashboardData}
-              onRefresh={loadDashboardData}
-              onLogout={() => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                setUser(null);
-              }}
-            />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
+        element={<Navigate to={`/${location.search}${location.hash}`} replace />}
       />
       <Route
         path="/analytics"
@@ -142,7 +143,7 @@ const App = () => {
           )
         }
       />
-      <Route path="*" element={<Navigate to={user ? '/dashboard' : '/'} replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

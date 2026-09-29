@@ -180,7 +180,7 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
             <h1>Profile & account details</h1>
           </div>
           <div className="topbar-actions">
-            <Link className="secondary-btn" to="/dashboard">Back to dashboard</Link>
+            <Link className="secondary-btn" to="/">Back to dashboard</Link>
           </div>
         </header>
 

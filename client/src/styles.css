@@ -183,6 +183,13 @@ body[data-theme='dark'] .sidebar::before {
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
 }
+.brand-home {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
 .brand-wrap h2, .brand-wrap p { margin: 0; }
 .brand-wrap p { color: var(--muted); font-size: 0.85rem; }
 .brand-badge {

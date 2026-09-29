@@ -34,7 +34,7 @@ const AuthScreen = ({ onAuthSuccess }) => {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify({ name: response.data.name, email: response.data.email }));
       onAuthSuccess(response.data);
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Authentication failed');
     } finally {
