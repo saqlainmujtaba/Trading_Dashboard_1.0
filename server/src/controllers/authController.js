@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import createAuthToken from '../config/authToken.js';
 import Account from '../models/Account.js';
 import Payout from '../models/Payout.js';
 import PlannedAccount from '../models/PlannedAccount.js';
@@ -199,11 +199,6 @@ const seedDemoContent = async (user) => {
   }
 };
 
-const generateToken = (user) =>
-  jwt.sign({ id: user._id, email: user.email, name: user.name }, process.env.JWT_SECRET || 'dev-secret', {
-    expiresIn: '7d',
-  });
-
 export const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -232,7 +227,7 @@ export const registerUser = async (req, res) => {
         _id: newUser._id,
         name: newUser.name,
         email: newUser.email,
-        token: generateToken(newUser),
+        token: createAuthToken(newUser),
       });
     }
 
@@ -254,7 +249,7 @@ export const registerUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      token: generateToken(user),
+      token: createAuthToken(user),
     });
   } catch (error) {
     res.status(500).json({ message: 'Registration failed', error: error.message });
@@ -286,7 +281,7 @@ export const loginUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        token: generateToken(user),
+        token: createAuthToken(user),
       });
     }
 
@@ -322,7 +317,7 @@ export const loginUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      token: generateToken(user),
+      token: createAuthToken(user),
     });
   } catch (error) {
     res.status(500).json({ message: 'Login failed', error: error.message });

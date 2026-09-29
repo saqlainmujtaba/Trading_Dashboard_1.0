@@ -33,7 +33,7 @@ const PortfolioSection = ({ accounts = [], formatCurrency }) => {
   return (
     <section id="portfolio" className="section-block">
       <div className="section-head">
-        <h2>Prop-Firm Portfolio</h2>
+        <h2 data-tour="portfolio-heading">Prop-Firm Portfolio</h2>
         <div className="section-actions">
           <SortControl value={sortBy} options={portfolioSortOptions} onChange={setSortBy} label="Sort portfolio" />
           <span className="section-tag">Firm overview</span>

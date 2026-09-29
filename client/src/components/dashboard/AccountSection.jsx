@@ -81,7 +81,7 @@ const AccountSection = ({
   return (
     <section id="accounts" className="section-block">
       <div className="section-head">
-        <h2>Current Accounts</h2>
+        <h2 data-tour="accounts-heading">Current Accounts</h2>
         <div className="section-actions">
           <SortControl value={sortBy} options={accountSortOptions} onChange={setSortBy} label="Sort accounts" />
           <button

@@ -186,10 +186,11 @@ const HistorySection = ({
           <div className="section-actions">
             <SortControl value={tradeSortBy} options={tradeSortOptions} onChange={setTradeSortBy} label="Sort trades" />
             <input ref={importFileRef} className="visually-hidden" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleTradeFile} />
-            <button type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
+            <button data-tour="trade-import-button" type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
             <button
               type="button"
               className="primary-btn"
+              data-tour="manual-trade-button"
               onClick={() => {
                 if (!showTradeForm) {
                   setShowTradeForm(true);
@@ -571,7 +572,7 @@ const HistorySection = ({
             </tbody>
           </table>
         </div>
-        <div className="trade-pagination" aria-label="Trade history pages">
+        <div className="trade-pagination" aria-label="Trade history pages" data-tour="trade-pagination">
           <label className="trade-page-size" htmlFor="trade-page-size">
             <span>Rows per page</span>
             <select
@@ -617,7 +618,7 @@ const HistorySection = ({
 
       <div>
         <div className="section-head">
-          <h2>Payouts</h2>
+          <h2 data-tour="payouts-heading">Payouts</h2>
           <div className="section-actions">
             <SortControl value={payoutSortBy} options={payoutSortOptions} onChange={setPayoutSortBy} label="Sort payouts" />
             <button

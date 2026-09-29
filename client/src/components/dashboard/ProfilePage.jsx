@@ -24,7 +24,7 @@ const defaultProfileData = {
 
 const emptyCustomField = { id: '', label: '', value: '' };
 
-const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
+const ProfilePage = ({ user, onLogout, theme, onToggleTheme, onStartTour }) => {
   const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('profileData');
     if (!saved) {
@@ -171,6 +171,7 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
         theme={theme}
         onToggleTheme={onToggleTheme}
         onLogout={onLogout}
+        onStartTour={onStartTour}
       />
 
       <main className="content profile-page">
@@ -185,7 +186,7 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
         </header>
 
         <section className="profile-shell">
-          <div className="profile-card hero-card">
+          <div className="profile-card hero-card" data-tour="profile-overview">
             <div className="profile-avatar">{(profile.fullName || user?.name || 'T').charAt(0).toUpperCase()}</div>
             <div className="profile-identity">
               <p className="eyebrow muted-text">Trader profile</p>

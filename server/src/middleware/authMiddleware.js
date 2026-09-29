@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import createAuthToken from '../config/authToken.js';
 
 const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -12,6 +13,7 @@ const protect = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
     req.user = decoded;
+    res.setHeader('X-Auth-Token', createAuthToken(decoded));
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token' });

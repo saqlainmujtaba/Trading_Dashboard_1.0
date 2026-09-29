@@ -40,7 +40,7 @@ const PlannedSection = ({
   return (
   <section id="planned" className="section-block">
     <div className="section-head">
-      <h2>Future / Planned Accounts</h2>
+      <h2 data-tour="planned-heading">Future / Planned Accounts</h2>
       <div className="section-actions">
         <SortControl value={sortBy} options={plannedSortOptions} onChange={setSortBy} label="Sort planned accounts" />
         <button

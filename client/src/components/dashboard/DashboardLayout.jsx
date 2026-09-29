@@ -82,7 +82,7 @@ const defaultPayoutForm = {
   status: 'Pending',
 };
 
-const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme }) => {
+const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, onStartTour }) => {
   const location = useLocation();
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
@@ -266,10 +266,11 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
         theme={theme}
         onToggleTheme={onToggleTheme}
         onLogout={onLogout}
+        onStartTour={onStartTour}
       />
 
       <main className="content" id="overview">
-        <header className="topbar">
+        <header className="topbar" data-tour="dashboard-overview">
           <div>
             <p className="eyebrow">Portfolio Summary</p>
             <h1>Prop Firm Overview</h1>

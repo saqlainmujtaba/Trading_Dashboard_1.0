@@ -545,6 +545,80 @@ th {
   font-size: 1.1rem;
   color: var(--muted);
 }
+.tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(8, 15, 22, 0.62);
+}
+.tour-spotlight {
+  position: fixed;
+  z-index: 1201;
+  border: 2px solid #5eead4;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(8, 15, 22, 0.62);
+  pointer-events: none;
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+.tour-popover {
+  position: fixed;
+  z-index: 1202;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+.tour-progress-track {
+  height: 4px;
+  margin: -22px -22px 18px;
+  overflow: hidden;
+  background: var(--panel-alt);
+  border-radius: 14px 14px 0 0;
+}
+.tour-progress-track span {
+  display: block;
+  height: 100%;
+  background: #0f766e;
+  transition: width 0.2s ease;
+}
+.tour-popover h2 {
+  margin: 8px 0;
+  font-size: 1.3rem;
+}
+.tour-copy {
+  min-height: 72px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.tour-actions,
+.tour-step-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tour-actions {
+  margin-top: 20px;
+}
+.tour-step-actions .secondary-btn,
+.tour-step-actions .primary-btn {
+  padding: 9px 12px;
+}
+.tour-skip {
+  width: auto;
+  margin: 0;
+  padding: 8px 0;
+  text-align: left;
+}
+.tour-restart-button {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  text-align: left;
+}
 .analytics-page {
   display: flex;
   flex-direction: column;
@@ -1135,6 +1209,20 @@ th {
   .section-actions {
     width: 100%;
     justify-content: space-between;
+  }
+  .tour-popover {
+    padding: 18px;
+  }
+  .tour-progress-track {
+    margin: -18px -18px 16px;
+  }
+  .tour-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tour-step-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
   .trade-page-summary {
     flex-basis: 100%;

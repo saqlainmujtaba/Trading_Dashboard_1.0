@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import api from './api';
 import AuthScreen from './components/auth/AuthScreen';
+import TourGuide from './components/common/TourGuide';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import ProfilePage from './components/dashboard/ProfilePage';
 
@@ -39,6 +40,7 @@ const App = () => {
   });
 
   const [isReady, setIsReady] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
     document.body.dataset.theme = theme;
@@ -56,7 +58,59 @@ const App = () => {
     return () => window.removeEventListener('storage', syncTheme);
   }, []);
 
+  useEffect(() => {
+    const expireSession = () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+    };
+
+    window.addEventListener('auth:expired', expireSession);
+    return () => window.removeEventListener('auth:expired', expireSession);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let lastActivityAt = Date.now();
+    const markActivity = () => { lastActivityAt = Date.now(); };
+    const activityEvents = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
+
+    const refreshOnVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      markActivity();
+      api.get('/auth/me').catch(() => {});
+    };
+    document.addEventListener('visibilitychange', refreshOnVisibility);
+
+    const refreshActiveSession = () => {
+      const wasRecentlyActive = Date.now() - lastActivityAt < 15 * 60 * 1000;
+      if (document.visibilityState !== 'visible' || !wasRecentlyActive) return;
+      api.get('/auth/me').catch(() => {});
+    };
+    const intervalId = window.setInterval(refreshActiveSession, 10 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshOnVisibility);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, markActivity));
+    };
+  }, [user]);
+
   const toggleTheme = () => setTheme((current) => (current === 'light' ? 'dark' : 'light'));
+  const tourStorageKey = user ? `dashboardTourCompleted:${user.id || user._id || user.email}` : '';
+
+  useEffect(() => {
+    if (!isReady || !tourStorageKey || localStorage.getItem(tourStorageKey)) return undefined;
+    const timeoutId = window.setTimeout(() => setIsTourOpen(true), 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [isReady, tourStorageKey]);
+
+  const closeTour = () => {
+    setIsTourOpen(false);
+    if (tourStorageKey) localStorage.setItem(tourStorageKey, 'true');
+  };
 
   const loadDashboardData = async () => {
     const token = localStorage.getItem('token');
@@ -104,6 +158,7 @@ const App = () => {
       onRefresh={loadDashboardData}
       theme={theme}
       onToggleTheme={toggleTheme}
+      onStartTour={() => setIsTourOpen(true)}
       onLogout={() => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -115,23 +170,45 @@ const App = () => {
   );
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={user ? dashboardPage : <AuthScreen onAuthSuccess={(userData) => { setUser(userData); loadDashboardData(); }} />}
-      />
-      <Route
-        path="/dashboard"
-        element={<Navigate to={`/${location.search}${location.hash}`} replace />}
-      />
-      <Route
-        path="/analytics"
-        element={
-          user ? (
-            <Suspense fallback={<div className="loading-screen">Loading analytics...</div>}>
-              <TradeAnalyticsPage
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={user ? dashboardPage : <AuthScreen onAuthSuccess={(userData) => { setUser(userData); loadDashboardData(); }} />}
+        />
+        <Route
+          path="/dashboard"
+          element={<Navigate to={`/${location.search}${location.hash}`} replace />}
+        />
+        <Route
+          path="/analytics"
+          element={
+            user ? (
+              <Suspense fallback={<div className="loading-screen">Loading analytics...</div>}>
+                <TradeAnalyticsPage
+                  user={user}
+                  dashboardData={dashboardData}
+                  onLogout={() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    setUser(null);
+                  }}
+                  theme={theme}
+                  onToggleTheme={toggleTheme}
+                  onStartTour={() => setIsTourOpen(true)}
+                />
+              </Suspense>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            user ? (
+              <ProfilePage
                 user={user}
-                dashboardData={dashboardData}
                 onLogout={() => {
                   localStorage.removeItem('token');
                   localStorage.removeItem('user');
@@ -139,34 +216,17 @@ const App = () => {
                 }}
                 theme={theme}
                 onToggleTheme={toggleTheme}
+                onStartTour={() => setIsTourOpen(true)}
               />
-            </Suspense>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          user ? (
-            <ProfilePage
-              user={user}
-              onLogout={() => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                setUser(null);
-              }}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-            />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <TourGuide open={isTourOpen} onClose={closeTour} />
+    </>
   );
 };
 

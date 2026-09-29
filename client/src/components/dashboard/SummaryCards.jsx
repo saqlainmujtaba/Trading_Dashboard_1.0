@@ -1,5 +1,5 @@
 const SummaryCards = ({ stats, formatCurrency }) => (
-  <section className="summary-grid">
+  <section className="summary-grid" data-tour="dashboard-summary">
     <div className="kpi-card"><span>Total Accounts</span><strong>{stats.totalAccounts}</strong></div>
     <div className="kpi-card"><span>Active Accounts</span><strong>{stats.activeAccounts}</strong></div>
     <div className="kpi-card"><span>Total Funding</span><strong>{formatCurrency(stats.totalFunding)}</strong></div>
