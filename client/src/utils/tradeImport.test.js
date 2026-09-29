@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeTradeRows, parseDelimitedText } from './tradeImport.js';
+import { decodeSpreadsheetXml, normalizeTradeRows, parseDelimitedText } from './tradeImport.js';
 
 test('parses quoted CSV fields and comma-delimited notes', () => {
   const rows = parseDelimitedText('Date,Symbol,Type,Volume,Open Price,Close Price,Profit,Comment\n2026-06-01,EURUSD,Buy,0.1,1.1,1.102,20,"London, breakout"');
@@ -52,4 +52,78 @@ test('converts Excel date serials in spreadsheet rows', () => {
     { Date: '46174', Symbol: 'EURUSD', Side: 'Buy', 'Entry Price': '1.1', 'Exit Price': '1.101', Profit: '10' },
   ]);
   assert.equal(result.trades[0].date, '2026-06-01');
+});
+
+test('falls back to the valid first MT5 Time column when the duplicate Time is not a date', () => {
+  const result = normalizeTradeRows([
+    {
+      Time: '2026.09.23 12:30:00',
+      Position: '98765',
+      Symbol: 'EURUSD',
+      Type: 'buy',
+      Volume: '0.1',
+      Price: '1.1000',
+      Time2: '-5.00',
+      Price2: '1.1020',
+      Profit: '20',
+    },
+  ]);
+  assert.equal(result.trades.length, 1);
+  assert.equal(result.trades[0].date, '2026-09-23');
+});
+
+test('decodes UTF-16LE workbook XML', () => {
+  const source = '<workbook><sheets><sheet name="History"/></sheets></workbook>';
+  const bytes = new Uint8Array(2 + source.length * 2);
+  bytes[0] = 0xff;
+  bytes[1] = 0xfe;
+  [...source].forEach((character, index) => {
+    const code = character.charCodeAt(0);
+    bytes[2 + index * 2] = code & 0xff;
+    bytes[3 + index * 2] = code >> 8;
+  });
+  assert.equal(decodeSpreadsheetXml(bytes), source);
+});
+
+test('ignores MT5 report summaries and includes commission and swap in gross profit', () => {
+  const result = normalizeTradeRows([
+    {
+      Time: '2026.09.23 12:30:00',
+      Position: '98765',
+      Symbol: 'EURUSD',
+      Type: 'buy',
+      Volume: '0.1',
+      Price: '1.1000',
+      Time2: '-5.00',
+      Price2: '1.1020',
+      Commission: '-0.50',
+      Swap: '-0.10',
+      Profit: '20.00',
+    },
+    { Time: 'Trade History Report' },
+    { Type: 'balance', Profit: '1000' },
+    { Type: 'buy limit', Symbol: 'EURUSD', Time: '2026.09.23 12:30:00' },
+  ]);
+  assert.equal(result.trades.length, 1);
+  assert.equal(result.trades[0].pnl, 19.4);
+  assert.equal(result.rejectedCount, 0);
+});
+
+test('uses MT5 position IDs to distinguish otherwise identical trades', () => {
+  const base = {
+    Time: '2026.09.23 12:30:00',
+    Symbol: 'EURUSD',
+    Type: 'buy',
+    Volume: '0.1',
+    Price: '1.1000',
+    Time2: '2026.09.23 12:31:00',
+    Price2: '1.1010',
+    Profit: '10',
+  };
+  const result = normalizeTradeRows([
+    { ...base, Position: '1001' },
+    { ...base, Position: '1002' },
+  ]);
+  assert.equal(result.trades.length, 2);
+  assert.notEqual(result.trades[0].externalId, result.trades[1].externalId);
 });

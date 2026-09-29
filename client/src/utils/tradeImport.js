@@ -12,6 +12,8 @@ const columnAliases = {
   entryPrice: ['entryprice', 'openprice', 'openingprice', 'priceopen', 'openrate', 'entry', 'price'],
   exitPrice: ['exitprice', 'closeprice', 'closingprice', 'priceclose', 'closerate', 'exit', 'price2', 'price1'],
   pnl: ['netprofit', 'netpnl', 'realizedpnl', 'realizedprofit', 'profitloss', 'pnl', 'profit', 'grossprofit', 'pl'],
+  commission: ['commission', 'fees', 'fee'],
+  swap: ['swap', 'rollover', 'financing'],
   risk: ['riskamount', 'risk', 'riskusd'],
   rr: ['riskreward', 'riskratio', 'rr'],
   reason: ['setup', 'reason', 'strategy', 'label'],
@@ -26,6 +28,11 @@ const readValue = (row, field) => {
   for (const alias of aliases) {
     const key = Object.keys(row).find((column) => normalizeHeader(column) === alias);
     if (key !== undefined && row[key] !== '' && row[key] != null) {
+      if (field === 'date') {
+        const date = parseDate(row[key]);
+        if (!date) continue;
+        return date;
+      }
       if (field === 'entryPrice' && alias === 'entry' && parseNumber(row[key]) == null) continue;
       return row[key];
     }
@@ -111,7 +118,11 @@ const makeTrade = (row, overrides = {}) => {
   const exitPrice = parseNumber(overrides.exitPrice ?? readValue(row, 'exitPrice'));
   const rawVolume = parseNumber(overrides.volume ?? readValue(row, 'volume'));
   const lotSize = rawVolume && rawVolume > 1000 ? rawVolume / 100000 : rawVolume;
-  const pnl = parseNumber(overrides.pnl ?? readValue(row, 'pnl'));
+  const importedPnl = parseNumber(overrides.pnl ?? readValue(row, 'pnl'));
+  const pnlColumn = Object.keys(row).find((column) => columnAliases.pnl.includes(normalizeHeader(column)));
+  const pnlIsNet = pnlColumn && ['netprofit', 'netpnl', 'realizedpnl', 'realizedprofit', 'profitloss', 'pnl'].includes(normalizeHeader(pnlColumn));
+  const costs = (parseNumber(readValue(row, 'commission')) || 0) + (parseNumber(readValue(row, 'swap')) || 0);
+  const pnl = importedPnl == null ? undefined : pnlIsNet ? importedPnl : importedPnl + costs;
   if (!date || !pair || !buySell || (entryPrice == null && exitPrice == null && pnl == null)) return null;
 
   const trade = {
@@ -128,7 +139,7 @@ const makeTrade = (row, overrides = {}) => {
     notes: String(readValue(row, 'notes') || ''),
     pnl,
   };
-  const sourceId = readValue(row, 'id');
+  const sourceId = readValue(row, 'id') || readValue(row, 'position');
   const fingerprint = [sourceId || '', date, pair, buySell, trade.entryPrice, trade.exitPrice, trade.lotSize, pnl ?? ''].join('|');
   trade.externalId = hashText(fingerprint);
   return trade;
@@ -206,14 +217,24 @@ const readDealAction = (row) => {
 
 export const normalizeTradeRows = (records) => {
   const rejectedRows = [];
-  const positionIds = records.map((row) => readValue(row, 'position')).filter(Boolean);
-  const useSplitDeals = records.some((row) => isOpenDeal(readDealAction(row)) || isCloseDeal(readDealAction(row)))
+  const tradeRows = records.filter((row) => {
+    const sideValue = String(readValue(row, 'side') || '').toLowerCase();
+    if (/limit|stop|balance|credit|deposit|withdrawal/.test(sideValue)) return false;
+    if (parseSide(readSide(row))) return true;
+    const action = readDealAction(row);
+    if (isOpenDeal(action) || isCloseDeal(action)) return true;
+    const pair = readValue(row, 'pair');
+    if (!pair || columnAliases.pair.includes(normalizeHeader(pair))) return false;
+    return Boolean(readValue(row, 'date') || readValue(row, 'entryPrice') || readValue(row, 'exitPrice') || readValue(row, 'pnl'));
+  });
+  const positionIds = tradeRows.map((row) => readValue(row, 'position')).filter(Boolean);
+  const useSplitDeals = tradeRows.some((row) => isOpenDeal(readDealAction(row)) || isCloseDeal(readDealAction(row)))
     && positionIds.length > 0;
   let trades = [];
 
   if (useSplitDeals) {
     const positions = new Map();
-    records.forEach((row) => {
+    tradeRows.forEach((row) => {
       const position = String(readValue(row, 'position') || '');
       if (!position) return;
       const rows = positions.get(position) || [];
@@ -239,7 +260,7 @@ export const normalizeTradeRows = (records) => {
       if (!closeRows.length) rejectedRows.push(...rows);
     });
   } else {
-    records.forEach((row) => {
+    tradeRows.forEach((row) => {
       const trade = makeTrade(row);
       if (trade) trades.push(trade);
       else rejectedRows.push(row);
@@ -258,15 +279,21 @@ export const normalizeTradeRows = (records) => {
   return { trades, rejectedCount: rejectedRows.length };
 };
 
+export const decodeSpreadsheetXml = (bytes) => {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
+  return new TextDecoder('utf-8').decode(bytes);
+};
+
 const parseXlsx = async (file) => {
-  const { strFromU8, unzipSync } = await import('fflate');
+  const { unzipSync } = await import('fflate');
   const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
   const workbookXml = archive['xl/workbook.xml'];
   const relationsXml = archive['xl/_rels/workbook.xml.rels'];
   if (!workbookXml || !relationsXml) throw new Error('This file is not a supported .xlsx workbook.');
 
-  const workbook = new DOMParser().parseFromString(strFromU8(workbookXml), 'application/xml');
-  const relations = new DOMParser().parseFromString(strFromU8(relationsXml), 'application/xml');
+  const workbook = new DOMParser().parseFromString(decodeSpreadsheetXml(workbookXml), 'application/xml');
+  const relations = new DOMParser().parseFromString(decodeSpreadsheetXml(relationsXml), 'application/xml');
   const firstSheet = workbook.getElementsByTagName('sheet')[0];
   if (!firstSheet) throw new Error('The workbook does not contain a worksheet.');
   const relationshipId = firstSheet.getAttribute('r:id')
@@ -279,10 +306,10 @@ const parseXlsx = async (file) => {
   if (!worksheetXml) throw new Error('The first worksheet could not be read.');
 
   const sharedStrings = archive['xl/sharedStrings.xml']
-    ? [...new DOMParser().parseFromString(strFromU8(archive['xl/sharedStrings.xml']), 'application/xml').getElementsByTagName('si')]
+    ? [...new DOMParser().parseFromString(decodeSpreadsheetXml(archive['xl/sharedStrings.xml']), 'application/xml').getElementsByTagName('si')]
       .map((item) => [...item.getElementsByTagName('t')].map((text) => text.textContent || '').join(''))
     : [];
-  const worksheet = new DOMParser().parseFromString(strFromU8(worksheetXml), 'application/xml');
+  const worksheet = new DOMParser().parseFromString(decodeSpreadsheetXml(worksheetXml), 'application/xml');
   const matrix = [...worksheet.getElementsByTagName('row')].map((row) => {
     const values = [];
     [...row.getElementsByTagName('c')].forEach((cell) => {
