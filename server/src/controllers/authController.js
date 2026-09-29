@@ -135,7 +135,23 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
+    if (!user && email.toLowerCase() === 'demo@trading.com' && password === 'password123') {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      try {
+        user = await User.create({
+          name: 'Demo Trader',
+          email: 'demo@trading.com',
+          password: hashedPassword,
+        });
+      } catch (error) {
+        if (error.code !== 11000) {
+          throw error;
+        }
+        user = await User.findOne({ email: 'demo@trading.com' });
+      }
+    }
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }

@@ -4,7 +4,7 @@ import api from '../../api';
 
 const AuthScreen = ({ onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [form, setForm] = useState({ name: '', email: 'demo@trading.com', password: 'password123' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,11 +12,25 @@ const AuthScreen = ({ onAuthSuccess }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setLoading(true);
     setError('');
 
+    const useDemoAccount = !form.email.trim() && !form.password.trim();
+    if (!useDemoAccount && (!form.email.trim() || !form.password.trim() || (!isLogin && !form.name.trim()))) {
+      setError(
+        isLogin
+          ? 'Enter both email and password, or leave both blank to use the demo account.'
+          : 'Enter your name, email, and password, or leave email and password blank to use the demo account.'
+      );
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await api.post(isLogin ? '/auth/login' : '/auth/register', form);
+      const authMode = useDemoAccount || isLogin ? 'login' : 'register';
+      const credentials = useDemoAccount
+        ? { email: 'demo@trading.com', password: 'password123' }
+        : { ...form, email: form.email.trim() };
+      const response = await api.post(`/auth/${authMode}`, credentials);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify({ name: response.data.name, email: response.data.email }));
       onAuthSuccess(response.data);
@@ -41,13 +55,13 @@ const AuthScreen = ({ onAuthSuccess }) => {
           {!isLogin && (
             <div className="form-group">
               <label>Name</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your full name" required />
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your full name" />
             </div>
           )}
 
           <div className="form-group">
             <label>Email</label>
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email address" required />
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="demo@trading.com" />
           </div>
 
           <div className="form-group">
@@ -57,8 +71,7 @@ const AuthScreen = ({ onAuthSuccess }) => {
                 type={showPassword ? 'text' : 'password'}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="Password"
-                required
+                placeholder="password123"
               />
               <button
                 type="button"
