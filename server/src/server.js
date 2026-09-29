@@ -25,6 +25,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.send('Trading dashboard server is running.');
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Trading dashboard API is running' });
 });
