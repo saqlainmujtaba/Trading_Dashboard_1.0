@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import FormField from "../common/FormField";
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
+import { parseTradeFile } from '../../utils/tradeImport';
 
 const tradeSortOptions = [
   { value: 'date.desc', label: 'Date: newest first' },
@@ -52,6 +53,7 @@ const HistorySection = ({
   defaultTradeForm,
   defaultPayoutForm,
   handleTradeSubmit,
+  onImportTrades,
   handlePayoutSubmit,
   formatCurrency,
   deleteTrade,
@@ -62,8 +64,18 @@ const HistorySection = ({
   setShowPayoutForm,
   confirmDelete,
 }) => {
+  const importFileRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
   const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isParsingImport, setIsParsingImport] = useState(false);
+  const [isImportingTrades, setIsImportingTrades] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importSkippedCount, setImportSkippedCount] = useState(0);
+  const [importFileName, setImportFileName] = useState('');
+  const [importAccount, setImportAccount] = useState('');
+  const [importError, setImportError] = useState('');
+  const [importResult, setImportResult] = useState('');
   const sortedTrades = sortRows(trades || [], tradeSortBy);
   const sortedPayouts = sortRows(payouts || [], payoutSortBy);
   const payoutAccountOptions = [
@@ -72,7 +84,7 @@ const HistorySection = ({
   const activeAccountOptions = [
     ...new Set(
       accounts
-        .filter((account) => account?.status !== 'Failed')
+        .filter((account) => account?.status === 'Active')
         .map((account) => account?.name)
         .filter(Boolean)
     ),
@@ -82,6 +94,44 @@ const HistorySection = ({
   const selectedTradePair = tradePairOptions.includes(normalizedTradePair)
     ? normalizedTradePair
     : 'CUSTOM';
+
+  const handleTradeFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImportOpen(true);
+    setIsParsingImport(true);
+    setImportFileName(file.name);
+    setImportRows([]);
+    setImportSkippedCount(0);
+    setImportAccount(activeAccountOptions[0] || '');
+    setImportError('');
+    setImportResult('');
+    try {
+      const result = await parseTradeFile(file);
+      setImportRows(result.trades);
+      setImportSkippedCount(result.rejectedCount);
+    } catch (error) {
+      setImportError(error.message || 'Could not read this trade-history file.');
+    } finally {
+      setIsParsingImport(false);
+    }
+  };
+
+  const submitTradeImport = async () => {
+    setIsImportingTrades(true);
+    setImportError('');
+    try {
+      const result = await onImportTrades(importAccount, importRows);
+      setImportResult(`Imported ${result.imported} trades; skipped ${result.duplicates} already imported.`);
+      setImportRows([]);
+    } catch (error) {
+      setImportError(error.response?.data?.message || 'Could not import trades. Please try again.');
+    } finally {
+      setIsImportingTrades(false);
+    }
+  };
 
   const calculateTradeMetrics = (nextTrade) => {
     const normalizedPair = nextTrade.pair === 'CUSTOM' ? (nextTrade.customPair || '') : (nextTrade.pair || '');
@@ -122,6 +172,8 @@ const HistorySection = ({
           <h2>Trade History</h2>
           <div className="section-actions">
             <SortControl value={tradeSortBy} options={tradeSortOptions} onChange={setTradeSortBy} label="Sort trades" />
+            <input ref={importFileRef} className="visually-hidden" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleTradeFile} />
+            <button type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
             <button
               type="button"
               className="primary-btn"
@@ -140,6 +192,64 @@ const HistorySection = ({
             <span className="section-tag">Records</span>
           </div>
         </div>
+
+        {isImportOpen && (
+          <div className="modal-backdrop" onClick={() => setIsImportOpen(false)}>
+            <div className="modal-panel trade-import-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <p className="eyebrow">Trade journal import</p>
+                  <h3>Review imported trades</h3>
+                </div>
+                <button type="button" className="icon-close" onClick={() => setIsImportOpen(false)} aria-label="Close import">×</button>
+              </div>
+              <p className="import-file-name">{importFileName}</p>
+              {isParsingImport ? (
+                <p className="empty-state">Reading and matching trade columns...</p>
+              ) : (
+                <>
+                  <div className="import-summary">
+                    <span><strong>{importRows.length}</strong> ready to import</span>
+                    <span><strong>{importSkippedCount}</strong> skipped or duplicate rows</span>
+                  </div>
+                  <label className="field-group import-account-field">
+                    <span>Save trades to account</span>
+                    <select value={importAccount} onChange={(event) => setImportAccount(event.target.value)}>
+                      <option value="">Select active account</option>
+                      {activeAccountOptions.map((account) => <option key={account} value={account}>{account}</option>)}
+                    </select>
+                  </label>
+                  {importRows.length > 0 && (
+                    <div className="table-wrap import-preview-table">
+                      <table>
+                        <thead><tr><th>Date</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th><th>Lots</th><th>P/L</th></tr></thead>
+                        <tbody>
+                          {importRows.slice(0, 5).map((trade) => (
+                            <tr key={trade.externalId}>
+                              <td>{trade.date}</td><td>{trade.pair}</td><td>{trade.buySell}</td>
+                              <td>{trade.entryPrice}</td><td>{trade.exitPrice}</td><td>{trade.lotSize}</td>
+                              <td>{trade.pnl == null ? 'Auto' : formatCurrency(trade.pnl)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+              {importError && <div className="error-box" role="alert">{importError}</div>}
+              {importResult && <p className="import-result" role="status">{importResult}</p>}
+              <div className="form-actions">
+                <button type="button" className="secondary-btn" onClick={() => setIsImportOpen(false)}>Close</button>
+                {!isParsingImport && !importResult && (
+                  <button type="button" className="primary-btn" disabled={!importRows.length || !importAccount || isImportingTrades} onClick={submitTradeImport}>
+                    {isImportingTrades ? 'Importing...' : `Import ${importRows.length} trades`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {showTradeForm && (
           <div

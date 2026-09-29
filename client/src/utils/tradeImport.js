@@ -1,0 +1,320 @@
+const normalizeHeader = (value) => String(value || '')
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, '');
+
+const columnAliases = {
+  date: ['closetime', 'closingtime', 'closedate', 'exittime', 'closedatetime', 'time2', 'time1', 'date', 'datetime', 'time', 'opentime', 'openingtime', 'entrytime'],
+  pair: ['symbol', 'pair', 'instrument', 'asset', 'market'],
+  side: ['side', 'direction', 'buysell', 'type', 'tradetype'],
+  volume: ['lotsize', 'lots', 'volume', 'quantity', 'size', 'units'],
+  entryPrice: ['entryprice', 'openprice', 'openingprice', 'priceopen', 'openrate', 'entry', 'price'],
+  exitPrice: ['exitprice', 'closeprice', 'closingprice', 'priceclose', 'closerate', 'exit', 'price2', 'price1'],
+  pnl: ['netprofit', 'netpnl', 'realizedpnl', 'realizedprofit', 'profitloss', 'pnl', 'profit', 'grossprofit', 'pl'],
+  risk: ['riskamount', 'risk', 'riskusd'],
+  rr: ['riskreward', 'riskratio', 'rr'],
+  reason: ['setup', 'reason', 'strategy', 'label'],
+  notes: ['notes', 'comment', 'comments', 'memo'],
+  id: ['dealid', 'tradeid', 'ticket', 'deal', 'id'],
+  position: ['positionid', 'position', 'positionnumber'],
+  entryType: ['dealentry', 'entrytype', 'inout', 'entryout', 'entry'],
+};
+
+const readValue = (row, field) => {
+  const aliases = columnAliases[field] || [];
+  for (const alias of aliases) {
+    const key = Object.keys(row).find((column) => normalizeHeader(column) === alias);
+    if (key !== undefined && row[key] !== '' && row[key] != null) {
+      if (field === 'entryPrice' && alias === 'entry' && parseNumber(row[key]) == null) continue;
+      return row[key];
+    }
+  }
+  return undefined;
+};
+
+const readSide = (row) => {
+  for (const alias of columnAliases.side) {
+    const key = Object.keys(row).find((column) => normalizeHeader(column) === alias);
+    if (key === undefined) continue;
+    const side = parseSide(row[key]);
+    if (side) return side;
+  }
+  return '';
+};
+
+const parseNumber = (value) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (value == null || String(value).trim() === '') return undefined;
+  let normalized = String(value).trim().replace(/[\s$€£]/g, '');
+  const isNegative = normalized.startsWith('(') && normalized.endsWith(')');
+  normalized = normalized.replace(/[()]/g, '');
+  if (normalized.includes(',') && normalized.includes('.')) {
+    normalized = normalized.replace(/,/g, '');
+  } else if (normalized.includes(',')) {
+    normalized = normalized.replace(',', '.');
+  }
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return undefined;
+  return isNegative ? -parsed : parsed;
+};
+
+const parseDate = (value) => {
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) {
+    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+  }
+  if (typeof value === 'number' && value > 20000 && value < 100000) {
+    return new Date((value - 25569) * 86400000).toISOString().slice(0, 10);
+  }
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^\d{5}(?:\.\d+)?$/.test(text) && Number(text) > 20000 && Number(text) < 100000) {
+    return new Date((Number(text) - 25569) * 86400000).toISOString().slice(0, 10);
+  }
+  const yearFirst = text.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (yearFirst) return `${yearFirst[1]}-${yearFirst[2].padStart(2, '0')}-${yearFirst[3].padStart(2, '0')}`;
+  const dayFirst = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+  if (dayFirst) {
+    const first = Number(dayFirst[1]);
+    const second = Number(dayFirst[2]);
+    const month = first > 12 ? second : first;
+    const day = first > 12 ? first : second > 12 ? first : second;
+    return `${dayFirst[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  const normalized = text
+    .replace(/\.(?=\d{1,2}(?:\s|$))/g, '-');
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.valueOf()) ? '' : parsed.toISOString().slice(0, 10);
+};
+
+const parseSide = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['buy', 'long', 'b'].includes(normalized)) return 'Buy';
+  if (['sell', 'short', 's'].includes(normalized)) return 'Sell';
+  return '';
+};
+
+const hashText = (value) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `import-${(hash >>> 0).toString(16)}`;
+};
+
+const makeTrade = (row, overrides = {}) => {
+  const date = parseDate(overrides.date ?? readValue(row, 'date'));
+  const pair = String(readValue(row, 'pair') || '').trim().toUpperCase().replace('/', '');
+  const buySell = parseSide(overrides.side ?? readSide(row));
+  const entryPrice = parseNumber(overrides.entryPrice ?? readValue(row, 'entryPrice'));
+  const exitPrice = parseNumber(overrides.exitPrice ?? readValue(row, 'exitPrice'));
+  const rawVolume = parseNumber(overrides.volume ?? readValue(row, 'volume'));
+  const lotSize = rawVolume && rawVolume > 1000 ? rawVolume / 100000 : rawVolume;
+  const pnl = parseNumber(overrides.pnl ?? readValue(row, 'pnl'));
+  if (!date || !pair || !buySell || (entryPrice == null && exitPrice == null && pnl == null)) return null;
+
+  const trade = {
+    date,
+    pair,
+    buySell,
+    entryPrice: entryPrice ?? 0,
+    exitPrice: exitPrice ?? 0,
+    lotSize: lotSize ?? 0,
+    risk: parseNumber(readValue(row, 'risk')) ?? 0,
+    rr: parseNumber(readValue(row, 'rr')),
+    rrMode: 'manual',
+    reason: String(readValue(row, 'reason') || ''),
+    notes: String(readValue(row, 'notes') || ''),
+    pnl,
+  };
+  const sourceId = readValue(row, 'id');
+  const fingerprint = [sourceId || '', date, pair, buySell, trade.entryPrice, trade.exitPrice, trade.lotSize, pnl ?? ''].join('|');
+  trade.externalId = hashText(fingerprint);
+  return trade;
+};
+
+export const parseDelimitedText = (text) => {
+  const firstLine = String(text).replace(/^\uFEFF/, '').split(/\r?\n/, 1)[0] || '';
+  const delimiters = [',', ';', '\t'];
+  const delimiter = delimiters
+    .map((character) => ({ character, count: firstLine.split(character).length - 1 }))
+    .sort((first, second) => second.count - first.count)[0].character;
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  const source = String(text).replace(/^\uFEFF/, '');
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === '"') {
+      if (quoted && source[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === delimiter && !quoted) {
+      row.push(field);
+      field = '';
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && source[index + 1] === '\n') index += 1;
+      row.push(field);
+      if (row.some((value) => String(value).trim())) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+  row.push(field);
+  if (row.some((value) => String(value).trim())) rows.push(row);
+  return rows;
+};
+
+const getRecords = (matrix) => {
+  const headerIndex = matrix.slice(0, 20).findIndex((row) => {
+    const headers = row.map(normalizeHeader);
+    const hasPair = headers.some((header) => columnAliases.pair.includes(header));
+    const hasDate = headers.some((header) => columnAliases.date.includes(header));
+    const hasTradeValue = headers.some((header) => columnAliases.side.includes(header)
+      || columnAliases.entryPrice.includes(header)
+      || columnAliases.pnl.includes(header));
+    return hasPair && hasDate && hasTradeValue;
+  });
+  if (headerIndex < 0) throw new Error('Could not find trade-history columns. Use a platform export with date, symbol, and direction fields.');
+
+  const headers = matrix[headerIndex].map((header, index) => {
+    const base = String(header || `column${index + 1}`).trim();
+    const duplicateCount = matrix[headerIndex].slice(0, index).filter((item) => normalizeHeader(item) === normalizeHeader(base)).length;
+    return duplicateCount ? `${base}${duplicateCount + 1}` : base;
+  });
+  return matrix.slice(headerIndex + 1)
+    .filter((row) => row.some((value) => String(value ?? '').trim()))
+    .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
+};
+
+const isOpenDeal = (value) => /^(in|open|entry|inout)$/.test(normalizeHeader(value));
+const isCloseDeal = (value) => /^(out|close|exit|outby)$/.test(normalizeHeader(value));
+const readDealAction = (row) => {
+  const explicitAction = readValue(row, 'entryType');
+  if (isOpenDeal(explicitAction) || isCloseDeal(explicitAction)) return explicitAction;
+  const direction = Object.entries(row).find(([key]) => normalizeHeader(key) === 'direction')?.[1];
+  return isOpenDeal(direction) || isCloseDeal(direction) ? direction : explicitAction;
+};
+
+export const normalizeTradeRows = (records) => {
+  const rejectedRows = [];
+  const positionIds = records.map((row) => readValue(row, 'position')).filter(Boolean);
+  const useSplitDeals = records.some((row) => isOpenDeal(readDealAction(row)) || isCloseDeal(readDealAction(row)))
+    && positionIds.length > 0;
+  let trades = [];
+
+  if (useSplitDeals) {
+    const positions = new Map();
+    records.forEach((row) => {
+      const position = String(readValue(row, 'position') || '');
+      if (!position) return;
+      const rows = positions.get(position) || [];
+      rows.push(row);
+      positions.set(position, rows);
+    });
+
+    positions.forEach((rows) => {
+      const openRow = rows.find((row) => isOpenDeal(readDealAction(row)));
+      const closeRows = rows.filter((row) => isCloseDeal(readDealAction(row)));
+      closeRows.forEach((closeRow) => {
+        const trade = makeTrade(closeRow, {
+          side: readSide(openRow || closeRow),
+          date: readValue(closeRow, 'date'),
+          entryPrice: readValue(openRow || {}, 'entryPrice'),
+          exitPrice: readValue(closeRow, 'entryPrice'),
+          volume: readValue(closeRow, 'volume') ?? readValue(openRow || {}, 'volume'),
+          pnl: readValue(closeRow, 'pnl'),
+        });
+        if (trade) trades.push(trade);
+        else rejectedRows.push(closeRow);
+      });
+      if (!closeRows.length) rejectedRows.push(...rows);
+    });
+  } else {
+    records.forEach((row) => {
+      const trade = makeTrade(row);
+      if (trade) trades.push(trade);
+      else rejectedRows.push(row);
+    });
+  }
+
+  const seen = new Set();
+  trades = trades.filter((trade) => {
+    if (seen.has(trade.externalId)) {
+      rejectedRows.push(trade);
+      return false;
+    }
+    seen.add(trade.externalId);
+    return true;
+  });
+  return { trades, rejectedCount: rejectedRows.length };
+};
+
+const parseXlsx = async (file) => {
+  const { strFromU8, unzipSync } = await import('fflate');
+  const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
+  const workbookXml = archive['xl/workbook.xml'];
+  const relationsXml = archive['xl/_rels/workbook.xml.rels'];
+  if (!workbookXml || !relationsXml) throw new Error('This file is not a supported .xlsx workbook.');
+
+  const workbook = new DOMParser().parseFromString(strFromU8(workbookXml), 'application/xml');
+  const relations = new DOMParser().parseFromString(strFromU8(relationsXml), 'application/xml');
+  const firstSheet = workbook.getElementsByTagName('sheet')[0];
+  if (!firstSheet) throw new Error('The workbook does not contain a worksheet.');
+  const relationshipId = firstSheet.getAttribute('r:id')
+    || firstSheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+  const relation = [...relations.getElementsByTagName('Relationship')].find((item) => item.getAttribute('Id') === relationshipId);
+  if (!relation) throw new Error('Could not locate the first worksheet in this workbook.');
+  const target = relation.getAttribute('Target') || '';
+  const worksheetPath = target.startsWith('/') ? target.slice(1) : `xl/${target}`;
+  const worksheetXml = archive[worksheetPath.replace(/^xl\/\.\.\//, '')];
+  if (!worksheetXml) throw new Error('The first worksheet could not be read.');
+
+  const sharedStrings = archive['xl/sharedStrings.xml']
+    ? [...new DOMParser().parseFromString(strFromU8(archive['xl/sharedStrings.xml']), 'application/xml').getElementsByTagName('si')]
+      .map((item) => [...item.getElementsByTagName('t')].map((text) => text.textContent || '').join(''))
+    : [];
+  const worksheet = new DOMParser().parseFromString(strFromU8(worksheetXml), 'application/xml');
+  const matrix = [...worksheet.getElementsByTagName('row')].map((row) => {
+    const values = [];
+    [...row.getElementsByTagName('c')].forEach((cell) => {
+      const columnLetters = (cell.getAttribute('r') || '').match(/^[A-Z]+/i)?.[0] || 'A';
+      const columnIndex = [...columnLetters].reduce((total, letter) => total * 26 + letter.toUpperCase().charCodeAt(0) - 64, 0) - 1;
+      const value = cell.getElementsByTagName('v')[0]?.textContent || '';
+      const cellType = cell.getAttribute('t');
+      values[columnIndex] = cellType === 's'
+        ? sharedStrings[Number(value)] || ''
+        : cellType === 'inlineStr'
+          ? [...cell.getElementsByTagName('t')].map((item) => item.textContent || '').join('')
+          : value;
+    });
+    return values;
+  });
+  return matrix;
+};
+
+export const parseTradeFile = async (file) => {
+  if (file.size > 20 * 1024 * 1024) throw new Error('Choose a file smaller than 20 MB.');
+  const extension = file.name.split('.').pop().toLowerCase();
+  let matrix;
+  if (extension === 'csv' || extension === 'txt') {
+    matrix = parseDelimitedText(await file.text());
+  } else if (extension === 'xlsx') {
+    matrix = await parseXlsx(file);
+  } else {
+    throw new Error('Upload a CSV or modern Excel .xlsx file. Legacy .xls files are not supported.');
+  }
+
+  const result = normalizeTradeRows(getRecords(matrix));
+  if (!result.trades.length) throw new Error('No complete trades were found. Check that the export includes date, symbol, direction, and prices or profit.');
+  if (result.trades.length > 1000) throw new Error('This file contains more than 1,000 trades. Export a smaller date range and try again.');
+  return result;
+};

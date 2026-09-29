@@ -1,19 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import AnalyticsChart, { ChartTypeSelect } from './AnalyticsChart';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import Sidebar from '../layout/Sidebar';
@@ -42,6 +29,22 @@ const performanceSortOptions = [
   { value: 'wins.asc', label: 'Wins: low to high' },
   { value: 'losses.desc', label: 'Losses: high to low' },
   { value: 'losses.asc', label: 'Losses: low to high' },
+];
+
+const trendChartTypes = [
+  { value: 'area', label: 'Area' },
+  { value: 'line', label: 'Line' },
+  { value: 'bar', label: 'Bar' },
+];
+const categoryChartTypes = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'line', label: 'Line' },
+  { value: 'area', label: 'Area' },
+  { value: 'pie', label: 'Pie' },
+];
+const statusChartTypes = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'pie', label: 'Pie' },
 ];
 
 const formatCurrency = (value) =>
@@ -93,6 +96,14 @@ const downloadFile = (content, type, filename) => {
 const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleTheme }) => {
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
   const [performanceSortBy, setPerformanceSortBy] = useState('pnl.desc');
+  const [chartTypes, setChartTypes] = useState({
+    cumulative: 'area',
+    accountPnl: 'bar',
+    trades: 'bar',
+    payouts: 'bar',
+    accountStatus: 'bar',
+    plannedFunding: 'bar',
+  });
   const [filters, setFilters] = useState(initialFilters);
   const accounts = dashboardData?.accounts || [];
   const payouts = dashboardData?.payouts || [];
@@ -171,6 +182,20 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
     });
     return [...byDate.values()].sort((first, second) => first.date.localeCompare(second.date));
   }, [trades]);
+  const tradeOutcomeTotals = useMemo(() => {
+    const totals = { Wins: 0, Losses: 0, Breakeven: 0 };
+    trades.forEach((trade) => {
+      const pnl = getTradePnl(trade);
+      if (pnl > 0) totals.Wins += 1;
+      else if (pnl < 0) totals.Losses += 1;
+      else totals.Breakeven += 1;
+    });
+    return [
+      { result: 'Wins', count: totals.Wins, color: '#0f766e' },
+      { result: 'Losses', count: totals.Losses, color: '#dc5a4f' },
+      { result: 'Breakeven', count: totals.Breakeven, color: '#94a3b8' },
+    ].filter((item) => item.count > 0);
+  }, [trades]);
   const payoutHistory = useMemo(() => {
     const byDate = new Map();
     payouts.forEach((payout) => {
@@ -183,13 +208,25 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
     });
     return [...byDate.values()].sort((first, second) => first.date.localeCompare(second.date));
   }, [payouts]);
+  const payoutStatusTotals = useMemo(() => {
+    const totals = new Map();
+    payouts.forEach((payout) => {
+      const status = payout.status || 'Other';
+      totals.set(status, (totals.get(status) || 0) + (Number(payout.amount) || 0));
+    });
+    return [...totals.entries()].map(([status, amount]) => ({ status, amount }));
+  }, [payouts]);
   const accountStatusCounts = useMemo(() => {
     const counts = new Map();
     accounts.forEach((account) => {
       const status = String(account.status || 'Unknown').trim();
       counts.set(status, (counts.get(status) || 0) + 1);
     });
-    return [...counts.entries()].map(([status, count]) => ({ status, count }));
+    return [...counts.entries()].map(([status, count]) => {
+      const normalizedStatus = status.toLowerCase();
+      const color = normalizedStatus === 'active' ? '#0f766e' : normalizedStatus === 'failed' ? '#dc5a4f' : normalizedStatus === 'paused' ? '#e6a23c' : '#64748b';
+      return { status, count, color };
+    });
   }, [accounts]);
   const plannedFunding = useMemo(() => {
     const byCompany = new Map();
@@ -203,10 +240,9 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
     return [...byCompany.values()].sort((first, second) => second.size - first.size);
   }, [plannedAccounts]);
   const hasActiveFilters = Object.values(filters).some(Boolean);
-  const axisColor = theme === 'dark' ? '#9aa9bf' : '#64748b';
-  const gridColor = theme === 'dark' ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.25)';
 
   const updateFilter = (field, value) => setFilters((current) => ({ ...current, [field]: value }));
+  const updateChartType = (chart, type) => setChartTypes((current) => ({ ...current, [chart]: type }));
 
   const exportCsv = () => {
     const columns = ['Date', 'Account', 'Prop firm', 'Pair', 'Direction', 'Entry', 'Exit', 'Lots', 'Risk', 'P/L', 'R/R', 'Setup', 'Notes'];
@@ -403,25 +439,16 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
           <div className="analytics-panel chart-panel">
             <div className="section-head">
               <h2>Cumulative P/L</h2>
+              <ChartTypeSelect
+                value={chartTypes.cumulative}
+                onChange={(type) => updateChartType('cumulative', type)}
+                options={trendChartTypes}
+                label="cumulative P/L"
+              />
             </div>
             {dailyPerformance.length ? (
               <div className="analytics-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dailyPerformance} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-                    <defs>
-                      <linearGradient id="cumulativePnlFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0f766e" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#0f766e" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" vertical={false} />
-                    <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString()}`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
-                    <Tooltip labelFormatter={(value) => formatShortDate(value)} formatter={(value) => [formatCurrency(value), 'Cumulative P/L']} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                    <ReferenceLine y={0} stroke={gridColor} />
-                    <Area type="monotone" dataKey="cumulativePnl" stroke="#0f766e" strokeWidth={2.5} fill="url(#cumulativePnlFill)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <AnalyticsChart type={chartTypes.cumulative} data={dailyPerformance} categoryKey="date" series={[{ dataKey: 'cumulativePnl', name: 'Cumulative P/L' }]} dateAxis theme={theme} />
               </div>
             ) : <p className="empty-state">No trade data matches these filters.</p>}
           </div>
@@ -429,22 +456,19 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
           <div className="analytics-panel chart-panel">
             <div className="section-head">
               <h2>Account Performance</h2>
-              <SortControl value={performanceSortBy} options={performanceSortOptions} onChange={setPerformanceSortBy} label="Sort account performance" />
+              <div className="section-actions">
+                <ChartTypeSelect
+                  value={chartTypes.accountPnl}
+                  onChange={(type) => updateChartType('accountPnl', type)}
+                  options={categoryChartTypes.filter((option) => option.value !== 'pie')}
+                  label="account performance"
+                />
+                <SortControl value={performanceSortBy} options={performanceSortOptions} onChange={setPerformanceSortBy} label="Sort account performance" />
+              </div>
             </div>
             {sortedAccountPerformance.length ? (
               <div className="analytics-chart account-performance-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sortedAccountPerformance} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
-                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" horizontal={false} />
-                    <XAxis type="number" tickFormatter={(value) => `$${Number(value).toLocaleString()}`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={118} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(value) => [formatCurrency(value), 'Trade P/L']} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                    <ReferenceLine x={0} stroke={gridColor} />
-                    <Bar dataKey="pnl" radius={[0, 4, 4, 0]}>
-                      {sortedAccountPerformance.map((account) => <Cell key={account.name} fill={account.pnl >= 0 ? '#0f766e' : '#dc5a4f'} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <AnalyticsChart type={chartTypes.accountPnl} data={sortedAccountPerformance} categoryKey="name" series={[{ dataKey: 'pnl', name: 'Trade P/L', color: '#0f766e' }]} horizontal={chartTypes.accountPnl === 'bar'} theme={theme} />
               </div>
             ) : <p className="empty-state">No account trade data matches these filters.</p>}
           </div>
@@ -452,82 +476,77 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
 
         <section className="analytics-chart-grid" aria-label="Additional trading analytics">
           <div className="analytics-panel chart-panel">
-            <div className="section-head"><h2>Trades by Day</h2></div>
-            {dailyTradeVolume.length ? (
+            <div className="section-head">
+              <h2>Trades by Day</h2>
+              <ChartTypeSelect value={chartTypes.trades} onChange={(type) => updateChartType('trades', type)} options={categoryChartTypes} label="trades by day" />
+            </div>
+            {(chartTypes.trades === 'pie' ? tradeOutcomeTotals : dailyTradeVolume).length ? (
               <div className="analytics-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyTradeVolume} margin={{ top: 8, right: 10, bottom: 0, left: 4 }}>
-                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" vertical={false} />
-                    <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip labelFormatter={(value) => formatShortDate(value)} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                    <Legend />
-                    <Bar dataKey="wins" name="Wins" stackId="trades" fill="#0f766e" />
-                    <Bar dataKey="losses" name="Losses" stackId="trades" fill="#dc5a4f" />
-                    <Bar dataKey="breakeven" name="Breakeven" stackId="trades" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <AnalyticsChart
+                  type={chartTypes.trades}
+                  data={chartTypes.trades === 'pie' ? tradeOutcomeTotals : dailyTradeVolume}
+                  categoryKey={chartTypes.trades === 'pie' ? 'result' : 'date'}
+                  series={chartTypes.trades === 'pie'
+                    ? [{ dataKey: 'count', name: 'Trades' }]
+                    : [
+                      { dataKey: 'wins', name: 'Wins', color: '#0f766e', stackId: 'trades' },
+                      { dataKey: 'losses', name: 'Losses', color: '#dc5a4f', stackId: 'trades' },
+                      { dataKey: 'breakeven', name: 'Breakeven', color: '#94a3b8', stackId: 'trades' },
+                    ]}
+                  dateAxis={chartTypes.trades !== 'pie'}
+                  valueType="number"
+                  theme={theme}
+                />
               </div>
             ) : <p className="empty-state">No trade data matches these filters.</p>}
           </div>
 
           <div className="analytics-panel chart-panel">
-            <div className="section-head"><h2>Payout History</h2></div>
-            {payoutHistory.length ? (
+            <div className="section-head">
+              <h2>Payout History</h2>
+              <ChartTypeSelect value={chartTypes.payouts} onChange={(type) => updateChartType('payouts', type)} options={categoryChartTypes} label="payout history" />
+            </div>
+            {(chartTypes.payouts === 'pie' ? payoutStatusTotals : payoutHistory).length ? (
               <div className="analytics-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={payoutHistory} margin={{ top: 8, right: 10, bottom: 0, left: 4 }}>
-                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" vertical={false} />
-                    <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString()}`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
-                    <Tooltip labelFormatter={(value) => formatShortDate(value)} formatter={(value) => formatCurrency(value)} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                    <Legend />
-                    <Bar dataKey="approved" name="Approved" stackId="payouts" fill="#0f766e" />
-                    <Bar dataKey="pending" name="Pending" stackId="payouts" fill="#e6a23c" />
-                    <Bar dataKey="rejected" name="Rejected" stackId="payouts" fill="#dc5a4f" />
-                    <Bar dataKey="other" name="Other" stackId="payouts" fill="#64748b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <AnalyticsChart
+                  type={chartTypes.payouts}
+                  data={chartTypes.payouts === 'pie' ? payoutStatusTotals : payoutHistory}
+                  categoryKey={chartTypes.payouts === 'pie' ? 'status' : 'date'}
+                  series={chartTypes.payouts === 'pie'
+                    ? [{ dataKey: 'amount', name: 'Payouts' }]
+                    : [
+                      { dataKey: 'approved', name: 'Approved', color: '#0f766e', stackId: 'payouts' },
+                      { dataKey: 'pending', name: 'Pending', color: '#e6a23c', stackId: 'payouts' },
+                      { dataKey: 'rejected', name: 'Rejected', color: '#dc5a4f', stackId: 'payouts' },
+                      { dataKey: 'other', name: 'Other', color: '#64748b', stackId: 'payouts' },
+                    ]}
+                  dateAxis={chartTypes.payouts !== 'pie'}
+                  theme={theme}
+                />
               </div>
             ) : <p className="empty-state">No payouts recorded yet.</p>}
           </div>
 
           <div className="analytics-panel chart-panel">
-            <div className="section-head"><h2>Accounts by Status</h2></div>
+            <div className="section-head">
+              <h2>Accounts by Status</h2>
+              <ChartTypeSelect value={chartTypes.accountStatus} onChange={(type) => updateChartType('accountStatus', type)} options={statusChartTypes} label="account status" />
+            </div>
             {accountStatusCounts.length ? (
               <div className="analytics-chart account-performance-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={accountStatusCounts} layout="vertical" margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
-                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                    <YAxis type="category" dataKey="status" width={100} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(value) => [value, 'Accounts']} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                    <Bar dataKey="count" name="Accounts" radius={[0, 4, 4, 0]}>
-                      {accountStatusCounts.map((item) => {
-                        const status = item.status.toLowerCase();
-                        const fill = status === 'active' ? '#0f766e' : status === 'failed' ? '#dc5a4f' : status === 'paused' ? '#e6a23c' : '#64748b';
-                        return <Cell key={item.status} fill={fill} />;
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <AnalyticsChart type={chartTypes.accountStatus} data={accountStatusCounts} categoryKey="status" series={[{ dataKey: 'count', name: 'Accounts' }]} horizontal={chartTypes.accountStatus === 'bar'} valueType="number" theme={theme} />
               </div>
             ) : <p className="empty-state">No accounts recorded yet.</p>}
           </div>
 
           <div className="analytics-panel chart-panel">
-            <div className="section-head"><h2>Planned Funding by Firm</h2></div>
+            <div className="section-head">
+              <h2>Planned Funding by Firm</h2>
+              <ChartTypeSelect value={chartTypes.plannedFunding} onChange={(type) => updateChartType('plannedFunding', type)} options={statusChartTypes} label="planned funding" />
+            </div>
             {plannedFunding.length ? (
               <div className="analytics-chart account-performance-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={plannedFunding} layout="vertical" margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
-                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" horizontal={false} />
-                    <XAxis type="number" tickFormatter={(value) => `$${Number(value).toLocaleString()}`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                    <YAxis type="category" dataKey="company" width={118} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(value, name) => [name === 'Planned funding' ? formatCurrency(value) : value, name]} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                    <Bar dataKey="size" name="Planned funding" fill="#2563eb" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <AnalyticsChart type={chartTypes.plannedFunding} data={plannedFunding} categoryKey="company" series={[{ dataKey: 'size', name: 'Planned funding', color: '#2563eb' }]} horizontal={chartTypes.plannedFunding === 'bar'} theme={theme} />
               </div>
             ) : <p className="empty-state">No planned accounts recorded yet.</p>}
           </div>

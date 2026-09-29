@@ -17,6 +17,7 @@ const tradeSchema = new mongoose.Schema(
     reason: { type: String, default: '' },
     screenshot: { type: String, default: 'Attached' },
     notes: { type: String, default: '' },
+    externalId: { type: String, default: '' },
     date: { type: String, required: true },
   },
   { timestamps: true }

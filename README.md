@@ -15,6 +15,7 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - Trade analytics with cumulative P/L and account performance charts
 - Trade filters for search, date range, account, pair, direction, and result
 - CSV and PDF exports for the currently filtered trade report
+- Trade-history imports from CSV and modern `.xlsx` exports, with preview and account mapping
 - Persistent light/dark theme with system preference and cross-tab synchronization
 - User-scoped dashboard data and account ownership checks
 - Responsive UI for desktop, tablet, and mobile devices
@@ -132,8 +133,10 @@ Displays:
 - average trade value
 - best-performing account
 - cumulative P/L and account performance charts
+- selectable line, bar, area, and pie visualizations where appropriate
 - searchable, filterable trade history
 - CSV and PDF report exports
+- CSV and `.xlsx` history import with column matching for common MT5, cTrader, and MatchTrader exports
 
 ### Backend API
 The server exposes endpoints for:

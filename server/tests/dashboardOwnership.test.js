@@ -6,6 +6,7 @@ import {
   createPlannedAccount,
   createTrade,
   getDashboardData,
+  importTrades,
   updateAccount,
 } from '../src/controllers/dashboardController.js';
 
@@ -53,6 +54,19 @@ test('dashboard data and account-linked writes stay isolated by user', async () 
     date: '2026-01-02',
     amount: 500,
   });
+  const importedTrade = {
+    externalId: 'mt5-sample-deal-42',
+    date: '2026-01-04',
+    pair: 'EURUSD',
+    buySell: 'Buy',
+    entryPrice: 1.1,
+    exitPrice: 1.101,
+    lotSize: 0.1,
+    pnl: 17.5,
+  };
+  const firstImport = await invoke(importTrades, ownerId, { account: account.body.name, trades: [importedTrade] });
+  const duplicateImport = await invoke(importTrades, ownerId, { account: account.body.name, trades: [importedTrade] });
+  const crossUserImport = await invoke(importTrades, otherId, { account: account.body.name, trades: [importedTrade] });
 
   const ownerData = await invoke(getDashboardData, ownerId);
   const otherData = await invoke(getDashboardData, otherId);
@@ -71,7 +85,8 @@ test('dashboard data and account-linked writes stay isolated by user', async () 
 
   assert.equal(ownerData.body.accounts.length, 1);
   assert.equal(ownerData.body.plannedAccounts.length, 1);
-  assert.equal(ownerData.body.trades.length, 1);
+  assert.equal(ownerData.body.trades.length, 2);
+  assert.equal(ownerData.body.trades.find((trade) => trade.externalId === importedTrade.externalId).pnl, 17.5);
   assert.equal(ownerData.body.payouts.length, 1);
   assert.deepEqual(otherData.body.accounts, []);
   assert.deepEqual(otherData.body.plannedAccounts, []);
@@ -80,4 +95,7 @@ test('dashboard data and account-linked writes stay isolated by user', async () 
   assert.equal(deniedUpdate.statusCode, 404);
   assert.equal(deniedTrade.statusCode, 400);
   assert.equal(deniedPayout.statusCode, 400);
+  assert.equal(firstImport.body.imported, 1);
+  assert.equal(duplicateImport.body.duplicates, 1);
+  assert.equal(crossUserImport.statusCode, 400);
 });

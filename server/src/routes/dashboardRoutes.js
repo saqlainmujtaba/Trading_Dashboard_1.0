@@ -9,6 +9,7 @@ import {
   updatePlannedAccount,
   deletePlannedAccount,
   createTrade,
+  importTrades,
   updateTrade,
   deleteTrade,
   createPayout,
@@ -31,6 +32,7 @@ router.put('/planned-accounts/:id', updatePlannedAccount);
 router.delete('/planned-accounts/:id', deletePlannedAccount);
 
 router.post('/trades', createTrade);
+router.post('/trades/import', importTrades);
 router.put('/trades/:id', updateTrade);
 router.delete('/trades/:id', deleteTrade);
 

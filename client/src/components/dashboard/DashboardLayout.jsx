@@ -212,6 +212,12 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
     }
   };
 
+  const handleTradeImport = async (account, importedTrades) => {
+    const response = await api.post('/dashboard/trades/import', { account, trades: importedTrades });
+    await onRefresh();
+    return response.data;
+  };
+
   const handlePayoutSubmit = async (event) => {
     event.preventDefault();
     try {
@@ -323,6 +329,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           defaultTradeForm={defaultTradeForm}
           defaultPayoutForm={defaultPayoutForm}
           handleTradeSubmit={handleTradeSubmit}
+          onImportTrades={handleTradeImport}
           handlePayoutSubmit={handlePayoutSubmit}
           formatCurrency={formatCurrency}
           deleteTrade={deleteTrade}

@@ -63,12 +63,12 @@ const hasAccountForUser = async (userId, accountName, activeOnly = false) => {
     return inMemoryData.accounts.some((account) =>
       account.user === userId
       && account.name === accountName
-      && (!activeOnly || account.status !== 'Failed')
+      && (!activeOnly || account.status === 'Active')
     );
   }
 
   const query = { user: userId, name: accountName };
-  if (activeOnly) query.status = { $ne: 'Failed' };
+  if (activeOnly) query.status = 'Active';
   return Boolean(await Account.exists(query));
 };
 
@@ -342,6 +342,93 @@ export const createTrade = async (req, res) => {
     res.status(201).json(trade);
   } catch (error) {
     res.status(500).json({ message: 'Unable to create trade', error: error.message });
+  }
+};
+
+export const importTrades = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountName = String(req.body?.account || '').trim();
+    const rows = req.body?.trades;
+    if (!accountName || !Array.isArray(rows) || rows.length === 0 || rows.length > 1000) {
+      return res.status(400).json({ message: 'Choose an account and provide between 1 and 1,000 trades.' });
+    }
+
+    const account = isMongoConnected()
+      ? await Account.findOne({ user: userId, name: accountName, status: 'Active' }).select('propFirm').lean()
+      : inMemoryData.accounts.find((item) => item.user === userId && item.name === accountName && item.status === 'Active');
+    if (!account) {
+      return res.status(400).json({ message: 'Choose an active account that belongs to your profile.' });
+    }
+
+    const normalizedRows = [];
+    for (const [index, row] of rows.entries()) {
+      const payload = pickFields(row, tradeFields);
+      const importedPnl = Number(row.pnl);
+      const hasImportedPnl = row.pnl !== null && row.pnl !== undefined && row.pnl !== '' && Number.isFinite(importedPnl);
+      const entryPrice = Number(payload.entryPrice) || 0;
+      const exitPrice = Number(payload.exitPrice) || 0;
+      const lotSize = Number(payload.lotSize) || 0;
+      const validDate = /^\d{4}-\d{2}-\d{2}$/.test(String(payload.date || ''));
+      if (!validDate || !payload.pair || !['Buy', 'Sell'].includes(payload.buySell)
+        || (!hasImportedPnl && (!entryPrice || !exitPrice))) {
+        return res.status(400).json({ message: `Imported trade on row ${index + 1} is missing a valid date, symbol, direction, or price/P&L.` });
+      }
+
+      const trade = {
+        ...payload,
+        account: accountName,
+        propFirm: account.propFirm || payload.propFirm || '',
+        entryPrice,
+        exitPrice,
+        lotSize,
+        risk: Number(payload.risk) || 0,
+        pnl: hasImportedPnl ? importedPnl : calculateTradePnl({ ...payload, entryPrice, exitPrice, lotSize }),
+        rrMode: row.rr !== null && row.rr !== undefined && row.rr !== '' ? 'manual' : 'auto',
+        externalId: String(row.externalId || '').slice(0, 100),
+      };
+      trade.rr = calculateTradeRr({ ...trade, rr: row.rr });
+      normalizedRows.push(trade);
+    }
+
+    const seenExternalIds = new Set();
+    const duplicateExternalIds = new Set();
+    for (const trade of normalizedRows) {
+      if (!trade.externalId) continue;
+      if (seenExternalIds.has(trade.externalId)) duplicateExternalIds.add(trade.externalId);
+      seenExternalIds.add(trade.externalId);
+    }
+    const existingExternalIds = new Set();
+    const externalIds = [...seenExternalIds].filter((id) => !duplicateExternalIds.has(id));
+    if (externalIds.length) {
+      if (isMongoConnected()) {
+        const existingTrades = await Trade.find({ user: userId, account: accountName, externalId: { $in: externalIds } })
+          .select('externalId')
+          .lean();
+        existingTrades.forEach((trade) => existingExternalIds.add(trade.externalId));
+      } else {
+        inMemoryData.trades
+          .filter((trade) => trade.user === userId && trade.account === accountName && externalIds.includes(trade.externalId))
+          .forEach((trade) => existingExternalIds.add(trade.externalId));
+      }
+    }
+
+    const newTrades = normalizedRows.filter((trade) => !trade.externalId
+      || (!duplicateExternalIds.has(trade.externalId) && !existingExternalIds.has(trade.externalId)));
+    const duplicateCount = normalizedRows.length - newTrades.length;
+    if (!newTrades.length) {
+      return res.json({ imported: 0, duplicates: duplicateCount });
+    }
+
+    if (isMongoConnected()) {
+      await Trade.insertMany(newTrades.map((trade) => ({ ...trade, user: userId })));
+    } else {
+      newTrades.forEach((trade) => createLocalItem('trades', userId, trade, 'trade'));
+    }
+
+    res.status(201).json({ imported: newTrades.length, duplicates: duplicateCount });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to import trades', error: error.message });
   }
 };
 
