@@ -1,13 +1,21 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import api from './api';
 import AuthScreen from './components/auth/AuthScreen';
 import DashboardLayout from './components/dashboard/DashboardLayout';
-import TradeAnalyticsPage from './components/dashboard/TradeAnalyticsPage';
 import ProfilePage from './components/dashboard/ProfilePage';
+
+const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
+
+const getInitialTheme = () => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
 
 const App = () => {
   const location = useLocation();
+  const [theme, setTheme] = useState(getInitialTheme);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
@@ -31,6 +39,24 @@ const App = () => {
   });
 
   const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const syncTheme = (event) => {
+      if (event.key === 'theme' && (event.newValue === 'light' || event.newValue === 'dark')) {
+        setTheme(event.newValue);
+      }
+    };
+
+    window.addEventListener('storage', syncTheme);
+    return () => window.removeEventListener('storage', syncTheme);
+  }, []);
+
+  const toggleTheme = () => setTheme((current) => (current === 'light' ? 'dark' : 'light'));
 
   const loadDashboardData = async () => {
     const token = localStorage.getItem('token');
@@ -76,6 +102,8 @@ const App = () => {
       user={user}
       dashboardData={dashboardData}
       onRefresh={loadDashboardData}
+      theme={theme}
+      onToggleTheme={toggleTheme}
       onLogout={() => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -100,21 +128,19 @@ const App = () => {
         path="/analytics"
         element={
           user ? (
-            <TradeAnalyticsPage
-              user={user}
-              dashboardData={dashboardData}
-              onLogout={() => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                setUser(null);
-              }}
-              theme={localStorage.getItem('theme') || 'light'}
-              onToggleTheme={() => {
-                const nextTheme = (localStorage.getItem('theme') || 'light') === 'light' ? 'dark' : 'light';
-                localStorage.setItem('theme', nextTheme);
-                window.location.reload();
-              }}
-            />
+            <Suspense fallback={<div className="loading-screen">Loading analytics...</div>}>
+              <TradeAnalyticsPage
+                user={user}
+                dashboardData={dashboardData}
+                onLogout={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                  setUser(null);
+                }}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+              />
+            </Suspense>
           ) : (
             <Navigate to="/" replace />
           )
@@ -131,12 +157,8 @@ const App = () => {
                 localStorage.removeItem('user');
                 setUser(null);
               }}
-              theme={localStorage.getItem('theme') || 'light'}
-              onToggleTheme={() => {
-                const nextTheme = (localStorage.getItem('theme') || 'light') === 'light' ? 'dark' : 'light';
-                localStorage.setItem('theme', nextTheme);
-                window.location.reload();
-              }}
+              theme={theme}
+              onToggleTheme={toggleTheme}
             />
           ) : (
             <Navigate to="/" replace />

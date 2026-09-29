@@ -12,7 +12,11 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - Risk amount tracking in USD
 - Payout management tied to existing accounts
 - Portfolio overview by prop firm
-- Trade analytics page with account-wise performance and trade history
+- Trade analytics with cumulative P/L and account performance charts
+- Trade filters for search, date range, account, pair, direction, and result
+- CSV and PDF exports for the currently filtered trade report
+- Persistent light/dark theme with system preference and cross-tab synchronization
+- User-scoped dashboard data and account ownership checks
 - Responsive UI for desktop, tablet, and mobile devices
 - Sticky sidebar/header layout and mobile burger menu
 
@@ -22,6 +26,8 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - React
 - Vite
 - React Router
+- Recharts
+- jsPDF
 - Axios
 
 ### Backend
@@ -125,8 +131,9 @@ Displays:
 - total trade P/L
 - average trade value
 - best-performing account
-- full trade history table
-- account-wise performance chart bars
+- cumulative P/L and account performance charts
+- searchable, filterable trade history
+- CSV and PDF report exports
 
 ### Backend API
 The server exposes endpoints for:
@@ -185,13 +192,13 @@ The server exposes endpoints for:
 - Payouts are linked to existing accounts instead of being entered as separate manual account names.
 - Delete actions include confirmation prompts before removal.
 
-## Future Enhancements
+## Tests
 
-- Add real charts with Chart.js or Recharts
-- Add advanced filters for trade analytics
-- Add dark/light theme persistence improvements
-- Add export of reports to CSV/PDF
-- Add multi-user permissions
+Run the server-side ownership checks with:
+
+```bash
+npm test --workspace server
+```
 
 ## License
 

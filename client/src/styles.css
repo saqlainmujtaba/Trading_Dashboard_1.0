@@ -523,6 +523,28 @@ th {
   min-width: 0;
   overflow: hidden;
 }
+.analytics-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.analytics-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.5fr) repeat(6, minmax(110px, 1fr));
+  gap: 12px;
+}
+.analytics-chart {
+  width: 100%;
+  height: 290px;
+  min-width: 0;
+}
+.account-performance-chart {
+  height: 330px;
+}
+.filter-panel .section-head {
+  margin-bottom: 16px;
+}
 .profile-page {
   display: flex;
   flex-direction: column;
@@ -641,6 +663,9 @@ th {
   .analytics-layout {
     grid-template-columns: 1fr;
   }
+  .analytics-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 @media (max-width: 900px) {
   .analytics-summary-grid {
@@ -660,6 +685,9 @@ th {
   .hero-card > button {
     position: static;
   }
+  .analytics-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 640px) {
   .analytics-summary-grid {
@@ -667,6 +695,18 @@ th {
   }
   .analytics-panel {
     padding: 14px;
+  }
+  .analytics-filter-grid {
+    grid-template-columns: 1fr;
+  }
+  .analytics-chart {
+    height: 250px;
+  }
+  .account-performance-chart {
+    height: 300px;
+  }
+  .analytics-export-actions {
+    justify-content: flex-start;
   }
   .chart-row-header {
     flex-direction: column;

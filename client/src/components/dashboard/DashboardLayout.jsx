@@ -82,9 +82,8 @@ const defaultPayoutForm = {
   status: 'Pending',
 };
 
-const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh }) => {
+const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme }) => {
   const location = useLocation();
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -98,11 +97,6 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh }) => {
   const [editingPayoutId, setEditingPayoutId] = useState(null);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-
-  useEffect(() => {
-    document.body.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   useEffect(() => {
     const hash = location.hash.replace('#', '');
@@ -264,7 +258,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh }) => {
       <Sidebar
         user={user}
         theme={theme}
-        onToggleTheme={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+        onToggleTheme={onToggleTheme}
         onLogout={onLogout}
       />
 
