@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     profile: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    demoDataSeeded: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

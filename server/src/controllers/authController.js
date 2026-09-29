@@ -1,6 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import Account from '../models/Account.js';
+import Payout from '../models/Payout.js';
+import PlannedAccount from '../models/PlannedAccount.js';
+import Trade from '../models/Trade.js';
 import User from '../models/User.js';
 
 const inMemoryUsers = [];
@@ -42,6 +46,157 @@ const ensureDemoUser = async () => {
     email: 'demo@trading.com',
     password: hashedPassword,
   });
+};
+
+const dateFromToday = (dayOffset) => {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  return date.toISOString().slice(0, 10);
+};
+
+const seedDemoContent = async (user) => {
+  if (user.email.toLowerCase() !== 'demo@trading.com') return;
+
+  const claim = await User.updateOne(
+    { _id: user._id, demoDataSeeded: { $ne: true } },
+    { $set: { demoDataSeeded: true } }
+  );
+  if (!claim.modifiedCount) return;
+
+  try {
+    const existingData = await Promise.all([
+      Account.exists({ user: user._id }),
+      PlannedAccount.exists({ user: user._id }),
+      Trade.exists({ user: user._id }),
+      Payout.exists({ user: user._id }),
+    ]);
+    if (existingData.some(Boolean)) return;
+
+    const accounts = [
+      {
+        name: 'FundedSquad 100K',
+        propFirm: 'FundedSquad',
+        type: '2-Step',
+        fundedAmount: 100000,
+        startingBalance: 100000,
+        balance: 103420,
+        profitPercent: 3.42,
+        maxDailyLoss: 5,
+        maxOverallLoss: 10,
+        profitTarget: 8,
+        nextPayoutDate: dateFromToday(7),
+        payoutReceived: 1900,
+        status: 'Active',
+        purchaseDate: dateFromToday(-75),
+      },
+      {
+        name: 'Northstar 50K',
+        propFirm: 'Northstar Funding',
+        type: 'Evaluation',
+        fundedAmount: 50000,
+        startingBalance: 50000,
+        balance: 51075,
+        profitPercent: 2.15,
+        maxDailyLoss: 5,
+        maxOverallLoss: 10,
+        profitTarget: 8,
+        nextPayoutDate: dateFromToday(12),
+        payoutReceived: 975,
+        status: 'Active',
+        purchaseDate: dateFromToday(-48),
+      },
+      {
+        name: 'Apex Challenge 25K',
+        propFirm: 'Apex Capital',
+        type: '2-Step',
+        fundedAmount: 25000,
+        startingBalance: 25000,
+        balance: 23600,
+        profitPercent: -5.6,
+        maxDailyLoss: 5,
+        maxOverallLoss: 10,
+        profitTarget: 8,
+        payoutReceived: 0,
+        status: 'Failed',
+        purchaseDate: dateFromToday(-90),
+      },
+    ];
+    await Account.create(accounts.map((account) => ({ ...account, user: user._id })));
+
+    const plannedAccounts = [
+      {
+        company: 'FTMO',
+        size: 100000,
+        type: '2-Step',
+        purchaseDate: dateFromToday(14),
+        cost: 540,
+        priority: 'High',
+        notes: 'Next evaluation after the current payout cycle',
+      },
+      {
+        company: 'FundedSquad',
+        size: 50000,
+        type: 'Evaluation',
+        purchaseDate: dateFromToday(30),
+        cost: 299,
+        priority: 'Medium',
+        notes: 'Compare evaluation rules before purchase',
+      },
+      {
+        company: 'Nova Funding',
+        size: 25000,
+        type: 'Instant',
+        purchaseDate: dateFromToday(45),
+        cost: 169,
+        priority: 'Low',
+        notes: 'Optional smaller account for diversification',
+      },
+    ];
+    await PlannedAccount.create(plannedAccounts.map((account) => ({ ...account, user: user._id })));
+
+    const trades = [
+      { account: 'FundedSquad 100K', propFirm: 'FundedSquad', pair: 'EURUSD', buySell: 'Buy', entryPrice: 1.082, exitPrice: 1.085, lotSize: 0.2, risk: 150, pnl: 60, rr: '0.4', rrMode: 'auto', reason: 'London session breakout', notes: 'Waited for a clean retest.', date: dateFromToday(-2) },
+      { account: 'FundedSquad 100K', propFirm: 'FundedSquad', pair: 'EURUSD', buySell: 'Sell', entryPrice: 1.09, exitPrice: 1.087, lotSize: 0.2, risk: 120, pnl: 60, rr: '0.5', rrMode: 'auto', reason: 'Resistance rejection', notes: 'Reduced risk ahead of news.', date: dateFromToday(-4) },
+      { account: 'Northstar 50K', propFirm: 'Northstar Funding', pair: 'GBPUSD', buySell: 'Sell', entryPrice: 1.27, exitPrice: 1.272, lotSize: 0.2, risk: 100, pnl: -40, rr: '-0.4', rrMode: 'auto', reason: 'Range breakdown', notes: 'Stopped at planned risk.', date: dateFromToday(-6) },
+      { account: 'FundedSquad 100K', propFirm: 'FundedSquad', pair: 'XAUUSD', buySell: 'Buy', entryPrice: 2330, exitPrice: 2342, lotSize: 0.3, risk: 180, pnl: 360, rr: '2', rrMode: 'auto', reason: 'Higher-low continuation', notes: 'Partial close at first target.', date: dateFromToday(-9) },
+      { account: 'Northstar 50K', propFirm: 'Northstar Funding', pair: 'GBPUSD', buySell: 'Buy', entryPrice: 1.266, exitPrice: 1.2685, lotSize: 0.2, risk: 110, pnl: 50, rr: '0.45', rrMode: 'auto', reason: 'Support retest', notes: 'Closed into nearby resistance.', date: dateFromToday(-12) },
+      { account: 'FundedSquad 100K', propFirm: 'FundedSquad', pair: 'XAUUSD', buySell: 'Sell', entryPrice: 2368, exitPrice: 2357, lotSize: 0.4, risk: 200, pnl: 440, rr: '2.2', rrMode: 'auto', reason: 'Failed breakout', notes: 'Held to the planned target.', date: dateFromToday(-16) },
+    ];
+    await Trade.create(trades.map((trade) => ({ ...trade, user: user._id })));
+
+    const payouts = [
+      { account: 'FundedSquad 100K', date: dateFromToday(-8), amount: 1250, method: 'Bank Transfer', status: 'Approved' },
+      { account: 'FundedSquad 100K', date: dateFromToday(-2), amount: 650, method: 'Crypto', status: 'Pending' },
+      { account: 'Northstar 50K', date: dateFromToday(-18), amount: 975, method: 'PayPal', status: 'Approved' },
+    ];
+    await Payout.create(payouts.map((payout) => ({ ...payout, user: user._id })));
+
+    user.profile = {
+      fullName: 'Demo Trader',
+      tradingAlias: 'Northstar',
+      phone: '',
+      city: 'London',
+      country: 'United Kingdom',
+      timezone: 'Europe/London',
+      riskProfile: 'Moderate',
+      tradingStyle: 'Day',
+      experience: '3-5 years',
+      primaryMarkets: 'Forex and Gold',
+      strategy: 'London breakout with strict risk limits',
+      preferredPairs: 'EURUSD, GBPUSD, XAUUSD',
+      bio: 'Sample profile for exploring the dashboard features.',
+      goals: 'Stay consistent, protect capital, and follow the trading plan.',
+      customFields: [
+        { id: 'demo-broker', label: 'Broker', value: 'Demo Broker' },
+        { id: 'demo-focus', label: 'Current focus', value: 'Process consistency' },
+      ],
+      ...(user.profile || {}),
+    };
+    await user.save();
+  } catch (error) {
+    await User.updateOne({ _id: user._id }, { $set: { demoDataSeeded: false } });
+    console.error('Unable to seed demo dashboard content:', error.message);
+  }
 };
 
 const generateToken = (user) =>
@@ -160,6 +315,8 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+
+    await seedDemoContent(user);
 
     res.json({
       _id: user._id,
