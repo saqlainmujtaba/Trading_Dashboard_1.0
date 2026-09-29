@@ -184,8 +184,8 @@ export const parseDelimitedText = (text) => {
   return rows;
 };
 
-const getRecords = (matrix) => {
-  const headerIndex = matrix.slice(0, 20).findIndex((row) => {
+export const extractTradeRecords = (matrix) => {
+  const isTradeHeader = (row) => {
     const headers = row.map(normalizeHeader);
     const hasPair = headers.some((header) => columnAliases.pair.includes(header));
     const hasDate = headers.some((header) => columnAliases.date.includes(header));
@@ -193,7 +193,18 @@ const getRecords = (matrix) => {
       || columnAliases.entryPrice.includes(header)
       || columnAliases.pnl.includes(header));
     return hasPair && hasDate && hasTradeValue;
-  });
+  };
+
+  const positionsIndex = matrix.findIndex((row) => row.some((value) => normalizeHeader(value) === 'positions'));
+  const headerSearchStart = positionsIndex >= 0 ? positionsIndex + 1 : 0;
+  const headerSearchEnd = positionsIndex >= 0 ? Math.min(matrix.length, headerSearchStart + 10) : Math.min(matrix.length, 20);
+  let headerIndex = -1;
+  for (let index = headerSearchStart; index < headerSearchEnd; index += 1) {
+    if (isTradeHeader(matrix[index])) {
+      headerIndex = index;
+      break;
+    }
+  }
   if (headerIndex < 0) throw new Error('Could not find trade-history columns. Use a platform export with date, symbol, and direction fields.');
 
   const headers = matrix[headerIndex].map((header, index) => {
@@ -201,7 +212,20 @@ const getRecords = (matrix) => {
     const duplicateCount = matrix[headerIndex].slice(0, index).filter((item) => normalizeHeader(item) === normalizeHeader(base)).length;
     return duplicateCount ? `${base}${duplicateCount + 1}` : base;
   });
-  return matrix.slice(headerIndex + 1)
+
+  let tableEnd = matrix.length;
+  if (positionsIndex >= 0) {
+    tableEnd = matrix.findIndex((row, index) => {
+      if (index <= headerIndex) return false;
+      const populated = row.map((value) => String(value ?? '').trim()).filter(Boolean);
+      return populated.length === 1
+        && !parseDate(populated[0])
+        && parseNumber(populated[0]) === undefined;
+    });
+    if (tableEnd < 0) tableEnd = matrix.length;
+  }
+
+  return matrix.slice(headerIndex + 1, tableEnd)
     .filter((row) => row.some((value) => String(value ?? '').trim()))
     .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
 };
@@ -340,7 +364,7 @@ export const parseTradeFile = async (file) => {
     throw new Error('Upload a CSV or modern Excel .xlsx file. Legacy .xls files are not supported.');
   }
 
-  const result = normalizeTradeRows(getRecords(matrix));
+  const result = normalizeTradeRows(extractTradeRecords(matrix));
   if (!result.trades.length) throw new Error('No complete trades were found. Check that the export includes date, symbol, direction, and prices or profit.');
   if (result.trades.length > 1000) throw new Error('This file contains more than 1,000 trades. Export a smaller date range and try again.');
   return result;

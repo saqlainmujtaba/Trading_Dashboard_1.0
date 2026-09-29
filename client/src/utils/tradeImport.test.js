@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { decodeSpreadsheetXml, normalizeTradeRows, parseDelimitedText } from './tradeImport.js';
+import { decodeSpreadsheetXml, extractTradeRecords, normalizeTradeRows, parseDelimitedText } from './tradeImport.js';
 
 test('parses quoted CSV fields and comma-delimited notes', () => {
   const rows = parseDelimitedText('Date,Symbol,Type,Volume,Open Price,Close Price,Profit,Comment\n2026-06-01,EURUSD,Buy,0.1,1.1,1.102,20,"London, breakout"');
@@ -126,4 +126,23 @@ test('uses MT5 position IDs to distinguish otherwise identical trades', () => {
   ]);
   assert.equal(result.trades.length, 2);
   assert.notEqual(result.trades[0].externalId, result.trades[1].externalId);
+});
+
+test('imports only the table under Positions and stops before later report tables', () => {
+  const records = extractTradeRecords([
+    ['MT5 Account Report'],
+    ['Positions'],
+    ['Time', 'Position', 'Symbol', 'Type', 'Volume', 'Price', 'Time', 'Price', 'Profit'],
+    ['2026.09.23 10:00:00', 'position-1', 'EURUSD', 'buy', '0.1', '1.1000', '2026.09.23 11:00:00', '1.1010', '10'],
+    ['2026.09.24 10:00:00', 'position-2', 'GBPUSD', 'sell', '0.2', '1.2700', '2026.09.24 11:00:00', '1.2690', '20'],
+    ['Orders'],
+    ['Open Time', 'Ticket', 'Symbol', 'Type', 'Volume'],
+    ['2026.09.25 10:00:00', 'order-1', 'XAUUSD', 'buy limit', '0.1'],
+    ['Open Positions'],
+    ['Time', 'Position', 'Symbol', 'Type', 'Volume'],
+    ['2026.09.26 10:00:00', 'position-3', 'USDJPY', 'buy', '0.1'],
+  ]);
+
+  assert.equal(records.length, 2);
+  assert.deepEqual(records.map((record) => record.Position), ['position-1', 'position-2']);
 });
