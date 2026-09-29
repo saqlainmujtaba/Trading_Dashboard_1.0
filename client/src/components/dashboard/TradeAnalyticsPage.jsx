@@ -7,6 +7,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -93,6 +94,9 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
   const [performanceSortBy, setPerformanceSortBy] = useState('pnl.desc');
   const [filters, setFilters] = useState(initialFilters);
+  const accounts = dashboardData?.accounts || [];
+  const payouts = dashboardData?.payouts || [];
+  const plannedAccounts = dashboardData?.plannedAccounts || [];
   const allTrades = dashboardData?.trades || [];
   const accountOptions = [...new Set(allTrades.map((trade) => trade.account).filter(Boolean))].sort();
   const pairOptions = [...new Set(allTrades.map((trade) => trade.pair).filter(Boolean))].sort();
@@ -154,6 +158,50 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
         return { date, dailyPnl, cumulativePnl };
       });
   }, [trades]);
+  const dailyTradeVolume = useMemo(() => {
+    const byDate = new Map();
+    trades.forEach((trade) => {
+      if (!trade.date) return;
+      const day = byDate.get(trade.date) || { date: trade.date, wins: 0, losses: 0, breakeven: 0 };
+      const pnl = getTradePnl(trade);
+      if (pnl > 0) day.wins += 1;
+      else if (pnl < 0) day.losses += 1;
+      else day.breakeven += 1;
+      byDate.set(trade.date, day);
+    });
+    return [...byDate.values()].sort((first, second) => first.date.localeCompare(second.date));
+  }, [trades]);
+  const payoutHistory = useMemo(() => {
+    const byDate = new Map();
+    payouts.forEach((payout) => {
+      if (!payout.date) return;
+      const day = byDate.get(payout.date) || { date: payout.date, approved: 0, pending: 0, rejected: 0, other: 0 };
+      const status = String(payout.status || '').toLowerCase();
+      const statusKey = ['approved', 'pending', 'rejected'].includes(status) ? status : 'other';
+      day[statusKey] += Number(payout.amount) || 0;
+      byDate.set(payout.date, day);
+    });
+    return [...byDate.values()].sort((first, second) => first.date.localeCompare(second.date));
+  }, [payouts]);
+  const accountStatusCounts = useMemo(() => {
+    const counts = new Map();
+    accounts.forEach((account) => {
+      const status = String(account.status || 'Unknown').trim();
+      counts.set(status, (counts.get(status) || 0) + 1);
+    });
+    return [...counts.entries()].map(([status, count]) => ({ status, count }));
+  }, [accounts]);
+  const plannedFunding = useMemo(() => {
+    const byCompany = new Map();
+    plannedAccounts.forEach((account) => {
+      const company = account.company || 'Unspecified';
+      const item = byCompany.get(company) || { company, accountCount: 0, size: 0 };
+      item.accountCount += 1;
+      item.size += Number(account.size) || 0;
+      byCompany.set(company, item);
+    });
+    return [...byCompany.values()].sort((first, second) => second.size - first.size);
+  }, [plannedAccounts]);
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const axisColor = theme === 'dark' ? '#9aa9bf' : '#64748b';
   const gridColor = theme === 'dark' ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.25)';
@@ -399,6 +447,89 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
                 </ResponsiveContainer>
               </div>
             ) : <p className="empty-state">No account trade data matches these filters.</p>}
+          </div>
+        </section>
+
+        <section className="analytics-chart-grid" aria-label="Additional trading analytics">
+          <div className="analytics-panel chart-panel">
+            <div className="section-head"><h2>Trades by Day</h2></div>
+            {dailyTradeVolume.length ? (
+              <div className="analytics-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyTradeVolume} margin={{ top: 8, right: 10, bottom: 0, left: 4 }}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip labelFormatter={(value) => formatShortDate(value)} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+                    <Legend />
+                    <Bar dataKey="wins" name="Wins" stackId="trades" fill="#0f766e" />
+                    <Bar dataKey="losses" name="Losses" stackId="trades" fill="#dc5a4f" />
+                    <Bar dataKey="breakeven" name="Breakeven" stackId="trades" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : <p className="empty-state">No trade data matches these filters.</p>}
+          </div>
+
+          <div className="analytics-panel chart-panel">
+            <div className="section-head"><h2>Payout History</h2></div>
+            {payoutHistory.length ? (
+              <div className="analytics-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={payoutHistory} margin={{ top: 8, right: 10, bottom: 0, left: 4 }}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString()}`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
+                    <Tooltip labelFormatter={(value) => formatShortDate(value)} formatter={(value) => formatCurrency(value)} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+                    <Legend />
+                    <Bar dataKey="approved" name="Approved" stackId="payouts" fill="#0f766e" />
+                    <Bar dataKey="pending" name="Pending" stackId="payouts" fill="#e6a23c" />
+                    <Bar dataKey="rejected" name="Rejected" stackId="payouts" fill="#dc5a4f" />
+                    <Bar dataKey="other" name="Other" stackId="payouts" fill="#64748b" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : <p className="empty-state">No payouts recorded yet.</p>}
+          </div>
+
+          <div className="analytics-panel chart-panel">
+            <div className="section-head"><h2>Accounts by Status</h2></div>
+            {accountStatusCounts.length ? (
+              <div className="analytics-chart account-performance-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={accountStatusCounts} layout="vertical" margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+                    <YAxis type="category" dataKey="status" width={100} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(value) => [value, 'Accounts']} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+                    <Bar dataKey="count" name="Accounts" radius={[0, 4, 4, 0]}>
+                      {accountStatusCounts.map((item) => {
+                        const status = item.status.toLowerCase();
+                        const fill = status === 'active' ? '#0f766e' : status === 'failed' ? '#dc5a4f' : status === 'paused' ? '#e6a23c' : '#64748b';
+                        return <Cell key={item.status} fill={fill} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : <p className="empty-state">No accounts recorded yet.</p>}
+          </div>
+
+          <div className="analytics-panel chart-panel">
+            <div className="section-head"><h2>Planned Funding by Firm</h2></div>
+            {plannedFunding.length ? (
+              <div className="analytics-chart account-performance-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={plannedFunding} layout="vertical" margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 4" horizontal={false} />
+                    <XAxis type="number" tickFormatter={(value) => `$${Number(value).toLocaleString()}`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+                    <YAxis type="category" dataKey="company" width={118} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(value, name) => [name === 'Planned funding' ? formatCurrency(value) : value, name]} contentStyle={{ background: 'var(--panel)', borderColor: 'var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+                    <Bar dataKey="size" name="Planned funding" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : <p className="empty-state">No planned accounts recorded yet.</p>}
           </div>
         </section>
       </main>

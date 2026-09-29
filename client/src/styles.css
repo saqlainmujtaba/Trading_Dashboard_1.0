@@ -287,9 +287,25 @@ body[data-theme='dark'] .sidebar::before {
   font-size: 0.72rem;
   font-weight: 600;
 }
-.chip.success, .status-pill {
+.chip.success, .status-active {
   background: rgba(22, 163, 74, 0.12);
   color: var(--success);
+}
+.status-failed {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--danger);
+}
+.status-paused {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+}
+.status-closed,
+.status-unknown {
+  background: var(--panel-alt);
+  color: var(--muted);
+}
+body[data-theme='dark'] .status-paused {
+  color: #fbbf24;
 }
 .section-tag {
   background: var(--primary-soft);
@@ -513,6 +529,15 @@ th {
 .analytics-layout > * {
   min-width: 0;
 }
+.analytics-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  min-width: 0;
+}
+.analytics-chart-grid > * {
+  min-width: 0;
+}
 .analytics-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -687,6 +712,9 @@ th {
   }
   .analytics-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .analytics-chart-grid {
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 640px) {

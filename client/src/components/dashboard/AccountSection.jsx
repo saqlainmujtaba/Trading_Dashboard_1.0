@@ -39,6 +39,8 @@ const getProfitPercent = (fundedAmount, balance, startingBalance) => {
   return (profit / safeFundedAmount) * 100;
 };
 
+const getStatusClass = (status) => String(status || 'unknown').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
 const AccountSection = ({
   accounts,
   accountForm,
@@ -195,7 +197,7 @@ const AccountSection = ({
                 <p className="muted">{account.propFirm}</p>
                 <h3>{account.name}</h3>
               </div>
-              <span className="status-pill">{account.status}</span>
+              <span className={`status-pill status-${getStatusClass(account.status)}`}>{account.status || 'Unknown'}</span>
             </div>
             <div className="detail-grid">
               <div><label>Account type</label><p>{account.type}</p></div>
