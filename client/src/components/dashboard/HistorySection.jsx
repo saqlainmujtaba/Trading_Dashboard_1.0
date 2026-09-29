@@ -66,6 +66,8 @@ const HistorySection = ({
 }) => {
   const importFileRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
+  const [tradePageSize, setTradePageSize] = useState(10);
+  const [tradePage, setTradePage] = useState(1);
   const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isParsingImport, setIsParsingImport] = useState(false);
@@ -77,6 +79,17 @@ const HistorySection = ({
   const [importError, setImportError] = useState('');
   const [importResult, setImportResult] = useState('');
   const sortedTrades = sortRows(trades || [], tradeSortBy);
+  const tradePageCount = tradePageSize === 'all'
+    ? 1
+    : Math.max(1, Math.ceil(sortedTrades.length / tradePageSize));
+  const currentTradePage = Math.min(tradePage, tradePageCount);
+  const visibleTrades = tradePageSize === 'all'
+    ? sortedTrades
+    : sortedTrades.slice((currentTradePage - 1) * tradePageSize, currentTradePage * tradePageSize);
+  const firstVisibleTrade = sortedTrades.length ? (currentTradePage - 1) * (tradePageSize === 'all' ? sortedTrades.length : tradePageSize) + 1 : 0;
+  const lastVisibleTrade = tradePageSize === 'all'
+    ? sortedTrades.length
+    : Math.min(currentTradePage * tradePageSize, sortedTrades.length);
   const sortedPayouts = sortRows(payouts || [], payoutSortBy);
   const payoutAccountOptions = [
     ...new Set(accounts.map((account) => account?.name).filter(Boolean)),
@@ -498,7 +511,7 @@ const HistorySection = ({
               </tr>
             </thead>
             <tbody>
-              {sortedTrades.map((trade) => (
+              {visibleTrades.map((trade) => (
                 <tr key={trade._id}>
                   <td>{trade.date}</td>
                   <td>{trade.account}</td>
@@ -557,6 +570,48 @@ const HistorySection = ({
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="trade-pagination" aria-label="Trade history pages">
+          <label className="trade-page-size" htmlFor="trade-page-size">
+            <span>Rows per page</span>
+            <select
+              id="trade-page-size"
+              value={tradePageSize}
+              onChange={(event) => {
+                const nextSize = event.target.value === 'all' ? 'all' : Number(event.target.value);
+                setTradePageSize(nextSize);
+                setTradePage(1);
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+          <span className="trade-page-summary">
+            Showing {firstVisibleTrade}-{lastVisibleTrade} of {sortedTrades.length} trades
+          </span>
+          <div className="trade-page-buttons">
+            <button
+              type="button"
+              className="secondary-btn"
+              disabled={currentTradePage <= 1 || tradePageSize === 'all'}
+              onClick={() => setTradePage((page) => Math.max(1, page - 1))}
+            >
+              Previous
+            </button>
+            <span>Page {currentTradePage} of {tradePageCount}</span>
+            <button
+              type="button"
+              className="secondary-btn"
+              disabled={currentTradePage >= tradePageCount || tradePageSize === 'all'}
+              onClick={() => setTradePage((page) => Math.min(tradePageCount, page + 1))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
