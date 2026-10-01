@@ -241,7 +241,7 @@ const HistorySection = ({
                       <table>
                         <thead><tr><th>Date</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th><th>Lots</th><th>P/L</th></tr></thead>
                         <tbody>
-                          {importRows.slice(0, 5).map((trade) => (
+                          {importRows.map((trade) => (
                             <tr key={trade.externalId}>
                               <td>{trade.date}</td><td>{trade.pair}</td><td>{trade.buySell}</td>
                               <td>{trade.entryPrice}</td><td>{trade.exitPrice}</td><td>{trade.lotSize}</td>
