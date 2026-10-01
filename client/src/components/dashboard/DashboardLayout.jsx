@@ -83,7 +83,7 @@ const defaultPayoutForm = {
   status: 'Pending',
 };
 
-const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, isLoading = false }) => {
+const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, isLoading = false, loadingSections = new Set() }) => {
   const location = useLocation();
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
@@ -155,7 +155,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       setAccountForm(defaultAccountForm);
       setEditingAccountId(null);
       setShowAccountForm(false);
-      onRefresh();
+      onRefresh(['accounts']);
     } catch (error) {
       console.error('Unable to save account', error);
     }
@@ -172,7 +172,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       setPlannedForm(defaultPlannedAccountForm);
       setEditingPlannedId(null);
       setShowPlannedForm(false);
-      onRefresh();
+      onRefresh(['planned']);
     } catch (error) {
       console.error('Unable to save planned account', error);
     }
@@ -203,7 +203,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       setTradeForm(defaultTradeForm);
       setEditingTradeId(null);
       setShowTradeForm(false);
-      onRefresh();
+      onRefresh(['trades']);
     } catch (error) {
       console.error('Unable to save trade', error);
     }
@@ -211,7 +211,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
   const handleTradeImport = async (account, importedTrades) => {
     const response = await api.post('/dashboard/trades/import', { account, trades: importedTrades });
-    await onRefresh();
+    await onRefresh(['trades']);
     return response.data;
   };
 
@@ -226,7 +226,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       setPayoutForm(defaultPayoutForm);
       setEditingPayoutId(null);
       setShowPayoutForm(false);
-      onRefresh();
+      onRefresh(['payouts']);
     } catch (error) {
       console.error('Unable to save payout', error);
     }
@@ -234,22 +234,22 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
   const deleteAccount = async (id) => {
     await api.delete(`/dashboard/accounts/${id}`);
-    onRefresh();
+    onRefresh(['accounts']);
   };
 
   const deletePlanned = async (id) => {
     await api.delete(`/dashboard/planned-accounts/${id}`);
-    onRefresh();
+    onRefresh(['planned']);
   };
 
   const deleteTrade = async (id) => {
     await api.delete(`/dashboard/trades/${id}`);
-    onRefresh();
+    onRefresh(['trades']);
   };
 
   const deletePayout = async (id) => {
     await api.delete(`/dashboard/payouts/${id}`);
-    onRefresh();
+    onRefresh(['payouts']);
   };
 
   const confirmDelete = ({ title, message, onConfirm }) => {
@@ -272,13 +272,15 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
             <h1>Prop Firm Overview</h1>
           </div>
           <div className="topbar-actions">
-            {isLoading ? <Skeleton className="skeleton-chip" /> : <span className="chip success">{stats.activeAccounts} Active</span>}
+            {isLoading || loadingSections.has('accounts')
+              ? <Skeleton className="skeleton-chip" />
+              : <span className="chip success">{stats.activeAccounts} Active</span>}
           </div>
         </header>
 
-        <SummaryCards stats={stats} formatCurrency={formatCurrency} isLoading={isLoading} />
+        <SummaryCards stats={stats} formatCurrency={formatCurrency} isLoading={isLoading} loadingSections={loadingSections} />
 
-        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} isLoading={isLoading} />
+        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} isLoading={isLoading || loadingSections.has('accounts')} />
 
         <AccountSection
           accounts={accounts}
@@ -294,7 +296,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           showAccountForm={showAccountForm}
           setShowAccountForm={setShowAccountForm}
           confirmDelete={confirmDelete}
-          isLoading={isLoading}
+          isLoading={isLoading || loadingSections.has('accounts')}
         />
 
         <PlannedSection
@@ -310,7 +312,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           showPlannedForm={showPlannedForm}
           setShowPlannedForm={setShowPlannedForm}
           confirmDelete={confirmDelete}
-          isLoading={isLoading}
+          isLoading={isLoading || loadingSections.has('planned')}
         />
 
         <HistorySection
@@ -339,6 +341,8 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           setShowPayoutForm={setShowPayoutForm}
           confirmDelete={confirmDelete}
           isLoading={isLoading}
+          isTradesLoading={loadingSections.has('trades')}
+          isPayoutsLoading={loadingSections.has('payouts')}
         />
 
         {deleteConfirm && (

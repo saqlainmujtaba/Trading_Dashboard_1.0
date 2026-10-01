@@ -65,6 +65,8 @@ const HistorySection = ({
   setShowPayoutForm,
   confirmDelete,
   isLoading = false,
+  isTradesLoading = false,
+  isPayoutsLoading = false,
 }) => {
   const importFileRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
@@ -515,7 +517,7 @@ const HistorySection = ({
               </tr>
             </thead>
             <tbody>
-              {isLoading ? [0, 1, 2, 3, 4].map((row) => (
+              {isLoading || isTradesLoading ? [0, 1, 2, 3, 4].map((row) => (
                 <tr key={row} aria-hidden="true">
                   <td colSpan="10"><Skeleton className="skeleton-table-row" /></td>
                 </tr>
@@ -777,7 +779,7 @@ const HistorySection = ({
         )}
 
         <div className="payout-list">
-          {isLoading ? [0, 1].map((item) => (
+          {isLoading || isPayoutsLoading ? [0, 1].map((item) => (
             <div key={item} className="payout-card skeleton-card" aria-hidden="true">
               <div className="skeleton-stack">
                 <Skeleton className="skeleton-line skeleton-line-short" />

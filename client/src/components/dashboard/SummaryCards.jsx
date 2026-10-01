@@ -1,23 +1,25 @@
 import Skeleton from '../common/Skeleton';
 
-const SummaryCards = ({ stats, formatCurrency, isLoading = false }) => {
+const SummaryCards = ({ stats, formatCurrency, isLoading = false, loadingSections = new Set() }) => {
   const cards = [
-    ['Total Accounts', stats.totalAccounts],
-    ['Active Accounts', stats.activeAccounts],
-    ['Total Funding', formatCurrency(stats.totalFunding)],
-    ['Net PnL', formatCurrency(stats.totalProfit)],
-    ['Total Payouts', formatCurrency(stats.totalPayouts)],
-    ['Failed Accounts', stats.failedAccounts],
-    ['Planned Funding', formatCurrency(stats.plannedFunding)],
-    ['Combined Funding', formatCurrency(stats.combinedFunding)],
+    ['Total Accounts', stats.totalAccounts, ['accounts']],
+    ['Active Accounts', stats.activeAccounts, ['accounts']],
+    ['Total Funding', formatCurrency(stats.totalFunding), ['accounts']],
+    ['Net PnL', formatCurrency(stats.totalProfit), ['trades']],
+    ['Total Payouts', formatCurrency(stats.totalPayouts), ['payouts']],
+    ['Failed Accounts', stats.failedAccounts, ['accounts']],
+    ['Planned Funding', formatCurrency(stats.plannedFunding), ['planned']],
+    ['Combined Funding', formatCurrency(stats.combinedFunding), ['accounts', 'planned']],
   ];
 
   return (
     <section className="summary-grid">
-      {cards.map(([label, value]) => (
+      {cards.map(([label, value, sections]) => (
         <div className="kpi-card" key={label}>
           <span>{label}</span>
-          <strong>{isLoading ? <Skeleton className="skeleton-value" /> : value}</strong>
+          <strong>{isLoading || sections.some((section) => loadingSections.has(section))
+            ? <Skeleton className="skeleton-value" />
+            : value}</strong>
         </div>
       ))}
     </section>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import api from './api';
 import AuthScreen from './components/auth/AuthScreen';
@@ -7,6 +7,7 @@ import ProfilePage from './components/dashboard/ProfilePage';
 import TourGuide from './components/common/TourGuide';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
+const dashboardSections = ['accounts', 'planned', 'trades', 'payouts'];
 
 const getInitialTheme = () => {
   const savedTheme = localStorage.getItem('theme');
@@ -43,6 +44,10 @@ const App = () => {
   const [dashboardData, setDashboardData] = useState(createEmptyDashboardData);
   const [isReady, setIsReady] = useState(() => !localStorage.getItem('token'));
   const [isDashboardLoading, setIsDashboardLoading] = useState(() => Boolean(localStorage.getItem('token')));
+  const [loadingSections, setLoadingSections] = useState(() => (
+    localStorage.getItem('token') ? new Set(dashboardSections) : new Set()
+  ));
+  const loadingSectionCounts = useRef({});
 
   useEffect(() => {
     document.body.dataset.theme = theme;
@@ -65,6 +70,8 @@ const App = () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setIsDashboardLoading(false);
+      loadingSectionCounts.current = {};
+      setLoadingSections(new Set());
       setUser(null);
     };
 
@@ -103,21 +110,38 @@ const App = () => {
 
   const toggleTheme = () => setTheme((current) => (current === 'light' ? 'dark' : 'light'));
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (sections = null) => {
     const token = localStorage.getItem('token');
     if (!token) {
       setIsDashboardLoading(false);
+      setLoadingSections(new Set());
       return;
     }
 
-    setIsDashboardLoading(true);
+    const requestedSections = sections || dashboardSections;
+    requestedSections.forEach((section) => {
+      loadingSectionCounts.current[section] = (loadingSectionCounts.current[section] || 0) + 1;
+    });
+    setLoadingSections((current) => new Set([...current, ...requestedSections]));
+    if (!sections) setIsDashboardLoading(true);
+
     try {
       const response = await api.get('/dashboard');
       setDashboardData(response.data);
     } catch (error) {
       console.error('Failed to load dashboard data', error);
     } finally {
-      setIsDashboardLoading(false);
+      requestedSections.forEach((section) => {
+        loadingSectionCounts.current[section] -= 1;
+      });
+      setLoadingSections((current) => {
+        const next = new Set(current);
+        requestedSections.forEach((section) => {
+          if (!loadingSectionCounts.current[section]) next.delete(section);
+        });
+        return next;
+      });
+      if (!sections) setIsDashboardLoading(false);
     }
   };
 
@@ -139,6 +163,8 @@ const App = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setIsDashboardLoading(false);
+        loadingSectionCounts.current = {};
+        setLoadingSections(new Set());
         setUser(null);
       } finally {
         setIsReady(true);
@@ -153,6 +179,8 @@ const App = () => {
     localStorage.removeItem('user');
     setDashboardData(createEmptyDashboardData());
     setIsDashboardLoading(false);
+    loadingSectionCounts.current = {};
+    setLoadingSections(new Set());
     setUser(null);
   };
 
@@ -172,6 +200,7 @@ const App = () => {
         theme={theme}
         onToggleTheme={toggleTheme}
         isLoading
+        loadingSections={loadingSections}
       />
     );
   }
@@ -185,6 +214,7 @@ const App = () => {
       onToggleTheme={toggleTheme}
       onLogout={handleLogout}
       isLoading={isDashboardLoading}
+      loadingSections={loadingSections}
     />
   ) : (
     <Navigate to="/" replace />
@@ -214,6 +244,7 @@ const App = () => {
                 theme={theme}
                 onToggleTheme={toggleTheme}
                 isLoading
+                loadingSections={loadingSections}
               />
             )}>
               <TradeAnalyticsPage
