@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     profile: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     demoDataSeeded: { type: Boolean, default: false },
+    isDemo: { type: Boolean, default: false },
+    expiresAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

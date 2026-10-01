@@ -14,27 +14,36 @@ const AuthScreen = ({ onAuthSuccess }) => {
     event.preventDefault();
     setError('');
 
-    const useDemoAccount = !form.email.trim() && !form.password.trim();
-    if (!useDemoAccount && (!form.email.trim() || !form.password.trim() || (!isLogin && !form.name.trim()))) {
-      setError(
-        isLogin
-          ? 'Enter both email and password, or leave both blank to use the demo account.'
-          : 'Enter your name, email, and password, or leave email and password blank to use the demo account.'
-      );
+    if (!form.email.trim() || !form.password.trim() || (!isLogin && !form.name.trim())) {
+      setError(isLogin ? 'Enter your email and password.' : 'Enter your name, email, and password.');
       return;
     }
 
     setLoading(true);
     try {
-      const authMode = useDemoAccount || isLogin ? 'login' : 'register';
-      const credentials = useDemoAccount
-        ? { email: 'demo@trading.com', password: 'password123' }
-        : { ...form, email: form.email.trim() };
-      const response = await api.post(`/auth/${authMode}`, credentials);
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify({ name: response.data.name, email: response.data.email }));
-      onAuthSuccess(response.data);
-      navigate('/');
+      const authMode = isLogin ? 'login' : 'register';
+      const response = await api.post(`/auth/${authMode}`, { ...form, email: form.email.trim() });
+      completeAuth(response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeAuth = (userData) => {
+    localStorage.setItem('token', userData.token);
+    localStorage.setItem('user', JSON.stringify({ name: userData.name, email: userData.email }));
+    onAuthSuccess(userData);
+    navigate('/');
+  };
+
+  const handleDemoLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/demo');
+      completeAuth(response.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Authentication failed');
     } finally {
@@ -91,7 +100,17 @@ const AuthScreen = ({ onAuthSuccess }) => {
           </button>
         </form>
 
-        <button className="link-btn" onClick={() => setIsLogin(!isLogin)}>
+        {isLogin && (
+          <div className="auth-demo-actions">
+            <span className="auth-divider">OR</span>
+            <button className="secondary-btn" type="button" disabled={loading} onClick={handleDemoLogin}>
+              {loading ? 'Please wait...' : 'Login with demo'}
+            </button>
+            <small>Starts a private demo account that expires after 10 days.</small>
+          </div>
+        )}
+
+        <button className="link-btn" type="button" onClick={() => setIsLogin(!isLogin)}>
           {isLogin ? 'Need an account? Register' : 'Already have an account? Login'}
         </button>
       </div>

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import FormField from "../common/FormField";
+import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import { parseTradeFile } from '../../utils/tradeImport';
@@ -63,6 +64,7 @@ const HistorySection = ({
   showPayoutForm,
   setShowPayoutForm,
   confirmDelete,
+  isLoading = false,
 }) => {
   const importFileRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
@@ -137,7 +139,9 @@ const HistorySection = ({
     setImportError('');
     try {
       const result = await onImportTrades(importAccount, importRows);
-      setImportResult(`Imported ${result.imported} trades; skipped ${result.duplicates} already imported.`);
+      setImportResult(result.imported === 0 && result.duplicates > 0
+        ? `All ${result.duplicates} trades already exist in this account. Nothing new was added.`
+        : `Imported ${result.imported} new trades; skipped ${result.duplicates} duplicates.`);
       setImportRows([]);
     } catch (error) {
       setImportError(error.response?.data?.message || 'Could not import trades. Please try again.');
@@ -186,11 +190,10 @@ const HistorySection = ({
           <div className="section-actions">
             <SortControl value={tradeSortBy} options={tradeSortOptions} onChange={setTradeSortBy} label="Sort trades" />
             <input ref={importFileRef} className="visually-hidden" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleTradeFile} />
-            <button data-tour="trade-import-button" type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
+            <button type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
             <button
               type="button"
               className="primary-btn"
-              data-tour="manual-trade-button"
               onClick={() => {
                 if (!showTradeForm) {
                   setShowTradeForm(true);
@@ -512,7 +515,11 @@ const HistorySection = ({
               </tr>
             </thead>
             <tbody>
-              {visibleTrades.map((trade) => (
+              {isLoading ? [0, 1, 2, 3, 4].map((row) => (
+                <tr key={row} aria-hidden="true">
+                  <td colSpan="10"><Skeleton className="skeleton-table-row" /></td>
+                </tr>
+              )) : visibleTrades.length ? visibleTrades.map((trade) => (
                 <tr key={trade._id}>
                   <td>{trade.date}</td>
                   <td>{trade.account}</td>
@@ -568,11 +575,15 @@ const HistorySection = ({
                     </button>
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan="10" className="empty-cell">No trade history yet. Add a trade or import your history to get started.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-        <div className="trade-pagination" aria-label="Trade history pages" data-tour="trade-pagination">
+        <div className="trade-pagination" aria-label="Trade history pages">
           <label className="trade-page-size" htmlFor="trade-page-size">
             <span>Rows per page</span>
             <select
@@ -618,7 +629,7 @@ const HistorySection = ({
 
       <div>
         <div className="section-head">
-          <h2 data-tour="payouts-heading">Payouts</h2>
+          <h2>Payouts</h2>
           <div className="section-actions">
             <SortControl value={payoutSortBy} options={payoutSortOptions} onChange={setPayoutSortBy} label="Sort payouts" />
             <button
@@ -766,7 +777,18 @@ const HistorySection = ({
         )}
 
         <div className="payout-list">
-          {sortedPayouts.map((payout) => (
+          {isLoading ? [0, 1].map((item) => (
+            <div key={item} className="payout-card skeleton-card" aria-hidden="true">
+              <div className="skeleton-stack">
+                <Skeleton className="skeleton-line skeleton-line-short" />
+                <Skeleton className="skeleton-line skeleton-line-wide" />
+              </div>
+              <div className="skeleton-stack">
+                <Skeleton className="skeleton-line skeleton-line-short" />
+                <Skeleton className="skeleton-line" />
+              </div>
+            </div>
+          )) : sortedPayouts.length ? sortedPayouts.map((payout) => (
             <div key={payout._id} className="payout-card">
               <div>
                 <span className="muted">{payout.date}</span>
@@ -804,7 +826,9 @@ const HistorySection = ({
                 </div>
               </div>
             </div>
-          ))}
+          )) : (
+            <p className="empty-state">No payouts yet. Add a payout to track payments from your accounts.</p>
+          )}
         </div>
       </div>
     </section>

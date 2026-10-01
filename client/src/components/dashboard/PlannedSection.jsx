@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import FormField from '../common/FormField';
+import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 
@@ -33,6 +34,7 @@ const PlannedSection = ({
   showPlannedForm,
   setShowPlannedForm,
   confirmDelete,
+  isLoading = false,
 }) => {
   const [sortBy, setSortBy] = useState('priority.desc');
   const sortedPlannedAccounts = sortRows(plannedAccounts, sortBy);
@@ -40,7 +42,7 @@ const PlannedSection = ({
   return (
   <section id="planned" className="section-block">
     <div className="section-head">
-      <h2 data-tour="planned-heading">Future / Planned Accounts</h2>
+      <h2>Future / Planned Accounts</h2>
       <div className="section-actions">
         <SortControl value={sortBy} options={plannedSortOptions} onChange={setSortBy} label="Sort planned accounts" />
         <button
@@ -125,7 +127,11 @@ const PlannedSection = ({
           </tr>
         </thead>
         <tbody>
-          {sortedPlannedAccounts.map((item) => (
+          {isLoading ? [0, 1, 2].map((item) => (
+            <tr key={item} aria-hidden="true">
+              <td colSpan="8"><Skeleton className="skeleton-table-row" /></td>
+            </tr>
+          )) : sortedPlannedAccounts.length ? sortedPlannedAccounts.map((item) => (
             <tr key={item._id}>
               <td>{item.company}</td>
               <td>{formatCurrency(item.size)}</td>
@@ -151,7 +157,11 @@ const PlannedSection = ({
                 </button>
               </td>
             </tr>
-          ))}
+          )) : (
+            <tr>
+              <td colSpan="8" className="empty-cell">No planned accounts yet. Add a plan to keep future purchases organized.</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

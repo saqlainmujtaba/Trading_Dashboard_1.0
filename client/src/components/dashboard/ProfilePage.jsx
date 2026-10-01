@@ -24,7 +24,7 @@ const defaultProfileData = {
 
 const emptyCustomField = { id: '', label: '', value: '' };
 
-const ProfilePage = ({ user, onLogout, theme, onToggleTheme, onStartTour }) => {
+const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
   const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('profileData');
     if (!saved) {
@@ -171,7 +171,6 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme, onStartTour }) => {
         theme={theme}
         onToggleTheme={onToggleTheme}
         onLogout={onLogout}
-        onStartTour={onStartTour}
       />
 
       <main className="content profile-page">
@@ -186,14 +185,14 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme, onStartTour }) => {
         </header>
 
         <section className="profile-shell">
-          <div className="profile-card hero-card" data-tour="profile-overview">
+          <div className="profile-card hero-card">
             <div className="profile-avatar">{(profile.fullName || user?.name || 'T').charAt(0).toUpperCase()}</div>
             <div className="profile-identity">
               <p className="eyebrow muted-text">Trader profile</p>
               <h2>{profile.fullName || user?.name || 'Trader Profile'}</h2>
               <p>{profile.tradingAlias || 'Trading alias not set'}</p>
             </div>
-            <button className="primary-btn" onClick={openProfileEditor}>
+            <button className="primary-btn" data-tour-target="profile" onClick={openProfileEditor}>
               Edit profile
             </button>
           </div>

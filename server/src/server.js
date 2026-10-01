@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import { purgeExpiredDemoAccounts } from './controllers/authController.js';
 
 dotenv.config();
 
@@ -43,6 +44,10 @@ const startServer = async () => {
   }
 
   await connectDB();
+  await purgeExpiredDemoAccounts();
+  setInterval(() => {
+    purgeExpiredDemoAccounts().catch((error) => console.error('Demo account cleanup failed:', error.message));
+  }, 60 * 1000).unref();
 
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

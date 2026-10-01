@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomBytes, randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import createAuthToken from '../config/authToken.js';
 import Account from '../models/Account.js';
@@ -6,8 +7,10 @@ import Payout from '../models/Payout.js';
 import PlannedAccount from '../models/PlannedAccount.js';
 import Trade from '../models/Trade.js';
 import User from '../models/User.js';
+import { removeInMemoryDashboardData, seedInMemoryDemoData } from './dashboardController.js';
 
 const inMemoryUsers = [];
+const DEMO_LIFETIME_MS = 10 * 24 * 60 * 60 * 1000;
 const profileFields = [
   'fullName',
   'tradingAlias',
@@ -27,25 +30,62 @@ const profileFields = [
 ];
 
 const findUserById = async (id) => {
+  let user;
   if (mongoose.connection.readyState === 1) {
-    return User.findById(id);
+    user = await User.findById(id);
+  } else {
+    user = inMemoryUsers.find((item) => item._id === id);
   }
 
-  return inMemoryUsers.find((user) => user._id === id);
+  if (user?.isDemo && user.expiresAt && user.expiresAt <= new Date()) return null;
+  return user;
 };
 
-const ensureDemoUser = async () => {
-  if (inMemoryUsers.some((user) => user.email === 'demo@trading.com')) {
-    return;
+const removeDemoUserData = async (userIds) => Promise.all([
+  Account.deleteMany({ user: { $in: userIds } }),
+  PlannedAccount.deleteMany({ user: { $in: userIds } }),
+  Trade.deleteMany({ user: { $in: userIds } }),
+  Payout.deleteMany({ user: { $in: userIds } }),
+]);
+
+export const purgeExpiredDemoAccounts = async (now = new Date()) => {
+  if (mongoose.connection.readyState === 1) {
+    const expiredUsers = await User.find({ isDemo: true, expiresAt: { $lte: now } }).select('_id').lean();
+    if (!expiredUsers.length) return 0;
+
+    const userIds = expiredUsers.map((user) => user._id);
+    await removeDemoUserData(userIds);
+    const result = await User.deleteMany({ _id: { $in: userIds }, isDemo: true, expiresAt: { $lte: now } });
+    return result.deletedCount;
   }
 
-  const hashedPassword = await bcrypt.hash('password123', 10);
-  inMemoryUsers.push({
-    _id: 'demo-user',
+  const expiredUsers = inMemoryUsers.filter((user) => user.isDemo && user.expiresAt <= now);
+  const expiredIds = new Set(expiredUsers.map((user) => user._id));
+  removeInMemoryDashboardData(expiredIds);
+  for (let index = inMemoryUsers.length - 1; index >= 0; index -= 1) {
+    if (expiredIds.has(inMemoryUsers[index]._id)) inMemoryUsers.splice(index, 1);
+  }
+  return expiredUsers.length;
+};
+
+const createDemoUser = async () => {
+  const email = `demo-${randomUUID()}@demo.trading-dashboard.local`;
+  const password = randomBytes(32).toString('hex');
+  const user = {
     name: 'Demo Trader',
-    email: 'demo@trading.com',
-    password: hashedPassword,
-  });
+    email,
+    password: await bcrypt.hash(password, 10),
+    isDemo: true,
+    expiresAt: new Date(Date.now() + DEMO_LIFETIME_MS),
+  };
+
+  if (mongoose.connection.readyState === 1) {
+    return User.create(user);
+  }
+
+  const localUser = { ...user, _id: `local-demo-${randomUUID()}` };
+  inMemoryUsers.push(localUser);
+  return localUser;
 };
 
 const dateFromToday = (dayOffset) => {
@@ -55,10 +95,29 @@ const dateFromToday = (dayOffset) => {
 };
 
 const seedDemoContent = async (user) => {
-  if (user.email.toLowerCase() !== 'demo@trading.com') return;
+  if (!user.isDemo) return;
+  if (mongoose.connection.readyState !== 1) {
+    seedInMemoryDemoData(user._id);
+    user.profile = {
+      fullName: 'Demo Trader',
+      tradingAlias: 'Northstar',
+      city: 'London',
+      country: 'United Kingdom',
+      timezone: 'Europe/London',
+      riskProfile: 'Moderate',
+      tradingStyle: 'Day',
+      experience: '3-5 years',
+      primaryMarkets: 'Forex and Gold',
+      strategy: 'London breakout with strict risk limits',
+      preferredPairs: 'EURUSD, GBPUSD, XAUUSD',
+      bio: 'Sample profile for exploring the dashboard features.',
+      goals: 'Stay consistent, protect capital, and follow the trading plan.',
+    };
+    return;
+  }
 
   const claim = await User.updateOne(
-    { _id: user._id, demoDataSeeded: { $ne: true } },
+    { _id: user._id, isDemo: true, demoDataSeeded: { $ne: true } },
     { $set: { demoDataSeeded: true } }
   );
   if (!claim.modifiedCount) return;
@@ -205,10 +264,12 @@ export const registerUser = async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Please fill all fields' });
   }
+  if (email.trim().toLowerCase() === 'demo@trading.com') {
+    return res.status(400).json({ message: 'This email is reserved for the private demo login.' });
+  }
 
   try {
     if (mongoose.connection.readyState !== 1) {
-      await ensureDemoUser();
       const existingUser = inMemoryUsers.find((user) => user.email.toLowerCase() === email.toLowerCase());
       if (existingUser) {
         return res.status(400).json({ message: 'User already exists' });
@@ -263,9 +324,12 @@ export const loginUser = async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
+  if (email.trim().toLowerCase() === 'demo@trading.com') {
+    return res.status(401).json({ message: 'Use Login with demo to create your private demo account.' });
+  }
+
   try {
     if (mongoose.connection.readyState !== 1) {
-      await ensureDemoUser();
       const user = inMemoryUsers.find((item) => item.email.toLowerCase() === email.toLowerCase());
 
       if (!user) {
@@ -285,22 +349,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    let user = await User.findOne({ email });
-    if (!user && email.toLowerCase() === 'demo@trading.com' && password === 'password123') {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      try {
-        user = await User.create({
-          name: 'Demo Trader',
-          email: 'demo@trading.com',
-          password: hashedPassword,
-        });
-      } catch (error) {
-        if (error.code !== 11000) {
-          throw error;
-        }
-        user = await User.findOne({ email: 'demo@trading.com' });
-      }
-    }
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -321,6 +370,23 @@ export const loginUser = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Login failed', error: error.message });
+  }
+};
+
+export const createDemoSession = async (_req, res) => {
+  try {
+    const user = await createDemoUser();
+    await seedDemoContent(user);
+
+    return res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      demoExpiresAt: user.expiresAt,
+      token: createAuthToken(user),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Could not create a demo account', error: error.message });
   }
 };
 

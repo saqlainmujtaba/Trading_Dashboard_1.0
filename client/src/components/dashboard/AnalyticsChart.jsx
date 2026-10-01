@@ -127,8 +127,8 @@ const AnalyticsChart = ({
   );
 };
 
-export const ChartTypeSelect = ({ value, onChange, options, label, tourTarget }) => (
-  <label className="chart-type-select" data-tour={tourTarget}>
+export const ChartTypeSelect = ({ value, onChange, options, label }) => (
+  <label className="chart-type-select">
     <span>Chart type</span>
     <select aria-label={`Chart type for ${label}`} value={value} onChange={(event) => onChange(event.target.value)}>
       {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}

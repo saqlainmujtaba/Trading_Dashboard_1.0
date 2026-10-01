@@ -56,6 +56,18 @@ const calculateTradeRr = ({ pnl, risk, rr, rrMode }) => {
   return riskAmount ? Number(((Number(pnl) / riskAmount) || 0).toFixed(2)) : 0;
 };
 
+const getTradeImportKey = (trade) => {
+  return JSON.stringify([
+    String(trade.date || '').slice(0, 10),
+    String(trade.pair || '').toUpperCase().replaceAll('/', ''),
+    trade.buySell,
+    Number(trade.entryPrice || 0).toFixed(8),
+    Number(trade.exitPrice || 0).toFixed(8),
+    Number(trade.lotSize || 0).toFixed(8),
+    Number(trade.pnl || 0).toFixed(2),
+  ]);
+};
+
 const hasAccountForUser = async (userId, accountName, activeOnly = false) => {
   if (!accountName) return false;
 
@@ -113,6 +125,57 @@ const createLocalItem = (collection, userId, payload, prefix) => {
 
   inMemoryData[collection].push(item);
   return item;
+};
+
+export const seedInMemoryDemoData = (userId) => {
+  const hasData = Object.values(inMemoryData).some((items) => items.some((item) => item.user === userId));
+  if (hasData) return;
+
+  const dateFromToday = (dayOffset) => {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() + dayOffset);
+    return date.toISOString().slice(0, 10);
+  };
+  const accounts = [
+    {
+      name: 'FundedSquad 100K', propFirm: 'FundedSquad', type: '2-Step', fundedAmount: 100000,
+      startingBalance: 100000, balance: 103420, profitPercent: 3.42, maxDailyLoss: 5,
+      maxOverallLoss: 10, profitTarget: 8, nextPayoutDate: dateFromToday(7), payoutReceived: 1900,
+      status: 'Active', purchaseDate: dateFromToday(-75),
+    },
+    {
+      name: 'Northstar 50K', propFirm: 'Northstar Funding', type: 'Evaluation', fundedAmount: 50000,
+      startingBalance: 50000, balance: 51075, profitPercent: 2.15, maxDailyLoss: 5,
+      maxOverallLoss: 10, profitTarget: 8, nextPayoutDate: dateFromToday(12), payoutReceived: 975,
+      status: 'Active', purchaseDate: dateFromToday(-48),
+    },
+  ];
+  accounts.forEach((account) => createLocalItem('accounts', userId, account, 'account'));
+
+  [
+    { company: 'FTMO', size: 100000, type: '2-Step', purchaseDate: dateFromToday(14), cost: 540, priority: 'High', notes: 'Next evaluation after the current payout cycle' },
+    { company: 'FundedSquad', size: 50000, type: 'Evaluation', purchaseDate: dateFromToday(30), cost: 299, priority: 'Medium', notes: 'Compare evaluation rules before purchase' },
+  ].forEach((plannedAccount) => createLocalItem('plannedAccounts', userId, plannedAccount, 'planned'));
+
+  [
+    { account: 'FundedSquad 100K', propFirm: 'FundedSquad', pair: 'EURUSD', buySell: 'Buy', entryPrice: 1.082, exitPrice: 1.085, lotSize: 0.2, risk: 150, pnl: 60, rr: '0.4', rrMode: 'auto', reason: 'London session breakout', notes: 'Waited for a clean retest.', date: dateFromToday(-2) },
+    { account: 'FundedSquad 100K', propFirm: 'FundedSquad', pair: 'XAUUSD', buySell: 'Buy', entryPrice: 2330, exitPrice: 2342, lotSize: 0.3, risk: 180, pnl: 360, rr: '2', rrMode: 'auto', reason: 'Higher-low continuation', notes: 'Partial close at first target.', date: dateFromToday(-9) },
+    { account: 'Northstar 50K', propFirm: 'Northstar Funding', pair: 'GBPUSD', buySell: 'Sell', entryPrice: 1.27, exitPrice: 1.272, lotSize: 0.2, risk: 100, pnl: -40, rr: '-0.4', rrMode: 'auto', reason: 'Range breakdown', notes: 'Stopped at planned risk.', date: dateFromToday(-6) },
+  ].forEach((trade) => createLocalItem('trades', userId, trade, 'trade'));
+
+  [
+    { account: 'FundedSquad 100K', date: dateFromToday(-8), amount: 1250, method: 'Bank Transfer', status: 'Approved' },
+    { account: 'Northstar 50K', date: dateFromToday(-18), amount: 975, method: 'PayPal', status: 'Approved' },
+  ].forEach((payout) => createLocalItem('payouts', userId, payout, 'payout'));
+};
+
+export const removeInMemoryDashboardData = (userIds) => {
+  const userIdSet = userIds instanceof Set ? userIds : new Set(userIds);
+  Object.values(inMemoryData).forEach((items) => {
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      if (userIdSet.has(items[index].user)) items.splice(index, 1);
+    }
+  });
 };
 
 const updateLocalItem = (collection, userId, id, payload) => {
@@ -391,31 +454,49 @@ export const importTrades = async (req, res) => {
       normalizedRows.push(trade);
     }
 
-    const seenExternalIds = new Set();
-    const duplicateExternalIds = new Set();
-    for (const trade of normalizedRows) {
-      if (!trade.externalId) continue;
-      if (seenExternalIds.has(trade.externalId)) duplicateExternalIds.add(trade.externalId);
-      seenExternalIds.add(trade.externalId);
-    }
     const existingExternalIds = new Set();
-    const externalIds = [...seenExternalIds].filter((id) => !duplicateExternalIds.has(id));
-    if (externalIds.length) {
-      if (isMongoConnected()) {
-        const existingTrades = await Trade.find({ user: userId, account: accountName, externalId: { $in: externalIds } })
-          .select('externalId')
-          .lean();
-        existingTrades.forEach((trade) => existingExternalIds.add(trade.externalId));
-      } else {
-        inMemoryData.trades
-          .filter((trade) => trade.user === userId && trade.account === accountName && externalIds.includes(trade.externalId))
-          .forEach((trade) => existingExternalIds.add(trade.externalId));
-      }
+    const existingTradeKeys = new Set();
+    const externalIds = [...new Set(normalizedRows.map((trade) => trade.externalId).filter(Boolean))];
+    const tradeDates = [...new Set(normalizedRows.map((trade) => trade.date))];
+    let existingTrades = [];
+    if (isMongoConnected()) {
+      const matchAlternatives = [{ date: { $in: tradeDates } }];
+      if (externalIds.length) matchAlternatives.push({ externalId: { $in: externalIds } });
+      existingTrades = await Trade.find({ user: userId, account: accountName, $or: matchAlternatives })
+        .select('externalId date pair buySell entryPrice exitPrice lotSize pnl')
+        .lean();
+    } else {
+      existingTrades = inMemoryData.trades.filter((trade) =>
+        trade.user === userId
+        && trade.account === accountName
+        && (tradeDates.includes(trade.date) || (trade.externalId && externalIds.includes(trade.externalId)))
+      );
     }
+    existingTrades.forEach((trade) => {
+      if (trade.externalId) existingExternalIds.add(trade.externalId);
+      existingTradeKeys.add(getTradeImportKey(trade));
+    });
 
-    const newTrades = normalizedRows.filter((trade) => !trade.externalId
-      || (!duplicateExternalIds.has(trade.externalId) && !existingExternalIds.has(trade.externalId)));
-    const duplicateCount = normalizedRows.length - newTrades.length;
+    const seenExternalIds = new Set();
+    const seenTradeKeys = new Set();
+    const newTrades = [];
+    let duplicateCount = 0;
+    normalizedRows.forEach((trade) => {
+      const tradeKey = getTradeImportKey(trade);
+      const duplicate = existingTradeKeys.has(tradeKey)
+        || seenTradeKeys.has(tradeKey)
+        || (trade.externalId && (existingExternalIds.has(trade.externalId) || seenExternalIds.has(trade.externalId)));
+
+      if (duplicate) {
+        duplicateCount += 1;
+        return;
+      }
+
+      newTrades.push(trade);
+      seenTradeKeys.add(tradeKey);
+      if (trade.externalId) seenExternalIds.add(trade.externalId);
+    });
+
     if (!newTrades.length) {
       return res.json({ imported: 0, duplicates: duplicateCount });
     }

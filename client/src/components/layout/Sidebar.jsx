@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const Sidebar = ({ user, theme, onToggleTheme, onLogout, onStartTour }) => {
+const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   let profileName = '';
 
@@ -46,7 +46,6 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout, onStartTour }) => {
         <Link to="/#history" onClick={handleNavClick}>History</Link>
         <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
         <Link to="/profile" onClick={handleNavClick}>Profile</Link>
-        <button className="link-btn tour-restart-button" type="button" onClick={() => { handleNavClick(); onStartTour?.(); }}>Take a tour</button>
 
         <div className="mobile-sidebar-footer">
           <div className="user-summary">

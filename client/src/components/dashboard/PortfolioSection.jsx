@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import SortControl from '../common/SortControl';
+import Skeleton from '../common/Skeleton';
 import { sortRows } from '../common/sortRows';
 
 const portfolioSortOptions = [
@@ -15,7 +16,7 @@ const portfolioSortOptions = [
   { value: 'profit.asc', label: 'Profit: low to high' },
 ];
 
-const PortfolioSection = ({ accounts = [], formatCurrency }) => {
+const PortfolioSection = ({ accounts = [], formatCurrency, isLoading = false }) => {
   const [sortBy, setSortBy] = useState('firm.asc');
   const firms = [...new Set(accounts.map((account) => account.propFirm?.trim() || 'Unspecified firm'))];
   const summaries = firms.map((firm) => {
@@ -33,14 +34,24 @@ const PortfolioSection = ({ accounts = [], formatCurrency }) => {
   return (
     <section id="portfolio" className="section-block">
       <div className="section-head">
-        <h2 data-tour="portfolio-heading">Prop-Firm Portfolio</h2>
+        <h2>Prop-Firm Portfolio</h2>
         <div className="section-actions">
           <SortControl value={sortBy} options={portfolioSortOptions} onChange={setSortBy} label="Sort portfolio" />
           <span className="section-tag">Firm overview</span>
         </div>
       </div>
 
-      {sortedSummaries.length ? (
+      {isLoading ? (
+        <div className="portfolio-grid" aria-label="Loading portfolio summaries">
+          {[0, 1].map((item) => (
+            <div key={item} className="portfolio-card skeleton-card" aria-hidden="true">
+              <Skeleton className="skeleton-line skeleton-line-wide" />
+              <Skeleton className="skeleton-line skeleton-line-short" />
+              {[0, 1, 2].map((line) => <Skeleton key={line} className="skeleton-line" />)}
+            </div>
+          ))}
+        </div>
+      ) : sortedSummaries.length ? (
         <div className="portfolio-grid">
           {sortedSummaries.map((summary) => (
             <div key={summary.firm} className="portfolio-card">
@@ -55,7 +66,7 @@ const PortfolioSection = ({ accounts = [], formatCurrency }) => {
           ))}
         </div>
       ) : (
-        <p className="empty-state">Add a current account to see its prop firm here.</p>
+        <p className="empty-state">No portfolio accounts yet. Add a current account to see your prop firms here.</p>
       )}
     </section>
   );

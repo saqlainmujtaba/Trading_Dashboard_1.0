@@ -99,3 +99,60 @@ test('dashboard data and account-linked writes stay isolated by user', async () 
   assert.equal(duplicateImport.body.duplicates, 1);
   assert.equal(crossUserImport.statusCode, 400);
 });
+
+test('trade imports skip existing account trades and import only new rows', async () => {
+  const ownerId = `import-owner-${Date.now()}`;
+  const account = await invoke(createAccount, ownerId, {
+    name: `Import account ${ownerId}`,
+    status: 'Active',
+  });
+  const secondAccount = await invoke(createAccount, ownerId, {
+    name: `Second import account ${ownerId}`,
+    status: 'Active',
+  });
+  const existingTrade = {
+    account: account.body.name,
+    date: '2026-03-15',
+    pair: 'EURUSD',
+    buySell: 'Buy',
+    entryPrice: 1.1,
+    exitPrice: 1.101,
+    lotSize: 0.1,
+  };
+  await invoke(createTrade, ownerId, existingTrade);
+
+  const newTrade = {
+    date: '2026-03-16',
+    pair: 'GBPUSD',
+    buySell: 'Sell',
+    entryPrice: 1.27,
+    exitPrice: 1.269,
+    lotSize: 0.2,
+    externalId: 'new-position-2',
+  };
+  const samePricesDifferentPnl = {
+    ...existingTrade,
+    pnl: 12,
+    externalId: 'same-execution-different-pnl',
+  };
+  const mixedImport = await invoke(importTrades, ownerId, {
+    account: account.body.name,
+    trades: [{ ...existingTrade, pnl: 10, externalId: 'different-export-id' }, samePricesDifferentPnl, newTrade],
+  });
+  const repeatedImport = await invoke(importTrades, ownerId, {
+    account: account.body.name,
+    trades: [{ ...existingTrade, pnl: 10, externalId: 'different-export-id' }, samePricesDifferentPnl, newTrade],
+  });
+  const sameTradeDifferentAccount = await invoke(importTrades, ownerId, {
+    account: secondAccount.body.name,
+    trades: [{ ...existingTrade, pnl: 10, externalId: 'different-export-id' }],
+  });
+  const dashboard = await invoke(getDashboardData, ownerId);
+
+  assert.equal(mixedImport.body.imported, 2);
+  assert.equal(mixedImport.body.duplicates, 1);
+  assert.equal(repeatedImport.body.imported, 0);
+  assert.equal(repeatedImport.body.duplicates, 3);
+  assert.equal(sameTradeDifferentAccount.body.imported, 1);
+  assert.equal(dashboard.body.trades.length, 4);
+});

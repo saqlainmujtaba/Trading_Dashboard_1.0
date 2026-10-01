@@ -93,7 +93,7 @@ const downloadFile = (content, type, filename) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleTheme, onStartTour }) => {
+const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleTheme }) => {
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
   const [performanceSortBy, setPerformanceSortBy] = useState('pnl.desc');
   const [chartTypes, setChartTypes] = useState({
@@ -298,7 +298,6 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
         theme={theme}
         onToggleTheme={onToggleTheme}
         onLogout={onLogout}
-        onStartTour={onStartTour}
       />
 
       <main className="content analytics-page">
@@ -307,7 +306,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             <p className="eyebrow">Performance</p>
             <h1>Trade Analytics</h1>
           </div>
-          <div className="topbar-actions analytics-export-actions" data-tour="analytics-exports">
+          <div className="topbar-actions analytics-export-actions">
             <button className="secondary-btn" type="button" onClick={exportCsv}>Export CSV</button>
             <button className="primary-btn" type="button" onClick={exportPdf}>Export PDF</button>
             <Link className="secondary-btn" to="/">Back to dashboard</Link>
@@ -315,7 +314,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
         </header>
 
         <div className="analytics-summary-grid">
-          <div className="kpi-card">
+          <div className="kpi-card" data-tour-target="analytics">
             <span>Total Trade P/L</span>
             <strong className={totalPnL >= 0 ? 'positive-number' : 'negative-number'}>{formatCurrency(totalPnL)}</strong>
           </div>
@@ -335,7 +334,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
           </div>
         </div>
 
-        <section className="analytics-panel filter-panel" aria-label="Trade filters" data-tour="analytics-filters">
+        <section className="analytics-panel filter-panel" aria-label="Trade filters">
           <div className="section-head">
             <div>
               <p className="eyebrow">Trade journal</p>
@@ -445,7 +444,6 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
                 onChange={(type) => updateChartType('cumulative', type)}
                 options={trendChartTypes}
                 label="cumulative P/L"
-                tourTarget="analytics-chart-types"
               />
             </div>
             {dailyPerformance.length ? (

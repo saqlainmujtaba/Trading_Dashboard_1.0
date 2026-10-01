@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import FormField from '../common/FormField';
+import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 
@@ -55,6 +56,7 @@ const AccountSection = ({
   showAccountForm,
   setShowAccountForm,
   confirmDelete,
+  isLoading = false,
 }) => {
   const [sortBy, setSortBy] = useState('name.asc');
   const computedProfit = getProfitAmount(accountForm.balance, accountForm.startingBalance);
@@ -81,7 +83,7 @@ const AccountSection = ({
   return (
     <section id="accounts" className="section-block">
       <div className="section-head">
-        <h2 data-tour="accounts-heading">Current Accounts</h2>
+        <h2>Current Accounts</h2>
         <div className="section-actions">
           <SortControl value={sortBy} options={accountSortOptions} onChange={setSortBy} label="Sort accounts" />
           <button
@@ -189,8 +191,19 @@ const AccountSection = ({
         </div>
       )}
 
+      {!isLoading && !accounts.some((account) => account.status === 'Active') && (
+        <p className="empty-state">No active accounts yet. Add an account to start tracking your portfolio.</p>
+      )}
+
       <div className="account-grid">
-        {sortedAccounts.map((account) => (
+        {isLoading ? [0, 1].map((item) => (
+          <article key={item} className="account-card skeleton-card" aria-hidden="true">
+            <Skeleton className="skeleton-line skeleton-line-wide" />
+            <div className="skeleton-lines-grid">
+              {[0, 1, 2, 3, 4, 5].map((line) => <Skeleton key={line} className="skeleton-line" />)}
+            </div>
+          </article>
+        )) : sortedAccounts.map((account) => (
           <article key={account._id || account.id} className="account-card">
             <div className="account-top">
               <div>

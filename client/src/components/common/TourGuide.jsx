@@ -1,120 +1,211 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const steps = [
-  { path: '/', hash: '#overview', target: 'dashboard-overview', title: 'Your trading dashboard', body: 'This is your home base. The sidebar moves between sections, Analytics, and your profile.' },
-  { path: '/', hash: '#overview', target: 'dashboard-summary', title: 'Performance at a glance', body: 'These summary figures update from your accounts, trades, payouts, and planned funding.' },
-  { path: '/', hash: '#portfolio', target: 'portfolio-heading', title: 'Prop-firm portfolio', body: 'Compare total funding, balance, and profit across the firms where you hold accounts.' },
-  { path: '/', hash: '#accounts', target: 'accounts-heading', title: 'Current accounts', body: 'Add and manage funded or evaluation accounts. Their status, balances, limits, and payout details appear here.' },
-  { path: '/', hash: '#planned', target: 'planned-heading', title: 'Planned accounts', body: 'Keep upcoming challenges, expected costs, sizes, and priorities in one place.' },
-  { path: '/', hash: '#history', target: 'manual-trade-button', title: 'Add trades manually', body: 'Use Add trade to record a position by hand. P/L and risk-to-reward update from the values you enter.' },
-  { path: '/', hash: '#history', target: 'trade-import-button', title: 'Import platform history', body: 'Import CSV or XLSX history from supported MT5, cTrader, or MatchTrader exports. Review the preview and choose an active account before saving.' },
-  { path: '/', hash: '#history', target: 'trade-pagination', title: 'Browse trade history', body: 'Sort trades and choose 10, 20, 50, 100, or all rows. Previous and Next change only this table.' },
-  { path: '/', hash: '#history', target: 'payouts-heading', title: 'Track payouts', body: 'Add payouts to an account and follow amounts, payment methods, dates, and status.' },
-  { path: '/analytics', hash: '', target: 'analytics-filters', title: 'Filter analytics', body: 'Search trades and narrow the charts and report by date, account, pair, direction, and result.' },
-  { path: '/analytics', hash: '', target: 'analytics-chart-types', title: 'Choose chart types', body: 'Switch each chart between the available visualizations. Time-series and status charts offer the types that best fit their data.' },
-  { path: '/analytics', hash: '', target: 'analytics-exports', title: 'Export your report', body: 'Download the currently filtered trade report as CSV or PDF.' },
-  { path: '/profile', hash: '', target: 'profile-overview', title: 'Your trader profile', body: 'Review and edit your personal details, trading style, markets, strategy, and goals.' },
+const tourSteps = [
+  {
+    path: '/',
+    target: '.summary-grid .kpi-card:first-child',
+    title: 'Your trading overview',
+    description: 'Start here for a quick read on active accounts, funding, profit, and payouts.',
+  },
+  {
+    path: '/',
+    target: '#portfolio .section-head',
+    title: 'Prop-firm portfolio',
+    description: 'Compare account counts, funded amounts, balances, and profit by firm.',
+  },
+  {
+    path: '/',
+    target: '#accounts .section-head',
+    title: 'Current accounts',
+    description: 'Add and manage funded accounts, track their limits, balances, and status.',
+  },
+  {
+    path: '/',
+    target: '#planned .section-head',
+    title: 'Plan what is next',
+    description: 'Keep upcoming challenges and purchases organized by date, cost, and priority.',
+  },
+  {
+    path: '/',
+    target: '#history .section-head',
+    title: 'Trades and payouts',
+    description: 'Log trades, import trade files, and record payout requests in one history.',
+  },
+  {
+    path: '/analytics',
+    target: '[data-tour-target="analytics"]',
+    title: 'Trade analytics',
+    description: 'Review performance, filter your journal, compare accounts, and export reports.',
+  },
+  {
+    path: '/profile',
+    target: '[data-tour-target="profile"]',
+    title: 'Your trader profile',
+    description: 'Add your trading preferences, experience, strategy, and personal goals.',
+  },
 ];
 
-const TourGuide = ({ open, onClose }) => {
+const TourGuide = ({ user }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
-  const step = steps[stepIndex];
+  const step = tourSteps[stepIndex];
+  const storageKey = `trading-dashboard-tour:${user?._id || user?.id || user?.email || 'user'}`;
 
   useEffect(() => {
-    if (open) setStepIndex(0);
-  }, [open]);
+    if (!localStorage.getItem(storageKey)) setIsOpen(true);
+  }, [storageKey]);
 
   useEffect(() => {
-    if (!open || !step) return undefined;
-    if (location.pathname !== step.path || location.hash !== step.hash) {
-      navigate(`${step.path}${step.hash}`, { replace: false });
+    if (!isOpen) return undefined;
+
+    if (location.pathname !== step.path) {
+      navigate(step.path);
       return undefined;
     }
 
-    let attempts = 0;
-    let measureTimer;
-    const locateTarget = () => {
-      attempts += 1;
-      const target = document.querySelector(`[data-tour="${step.target}"]`);
+    let frameId;
+    let cleanupListeners = () => {};
+    const timeoutId = window.setTimeout(() => {
+      const target = document.querySelector(step.target);
       if (!target) {
-        if (attempts >= 30) {
-          window.clearInterval(targetTimer);
-          setTargetRect(null);
-        }
+        setTargetRect(null);
         return;
       }
 
-      window.clearInterval(targetTimer);
-      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-      measureTimer = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const measure = () => {
         const rect = target.getBoundingClientRect();
         setTargetRect({ top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height });
-      }, 500);
-    };
-    const targetTimer = window.setInterval(locateTarget, 100);
+      };
+      frameId = window.requestAnimationFrame(measure);
+      window.addEventListener('scroll', measure, true);
+      window.addEventListener('resize', measure);
+      cleanupListeners = () => {
+        window.removeEventListener('scroll', measure, true);
+        window.removeEventListener('resize', measure);
+      };
+    }, 120);
 
     return () => {
-      window.clearInterval(targetTimer);
-      window.clearTimeout(measureTimer);
+      window.clearTimeout(timeoutId);
+      if (frameId) window.cancelAnimationFrame(frameId);
+      cleanupListeners();
     };
-  }, [location.hash, location.pathname, navigate, open, step]);
+  }, [isOpen, location.pathname, navigate, step]);
 
   useEffect(() => {
-    if (!open) return undefined;
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
-      if (event.key === 'ArrowRight') setStepIndex((index) => Math.min(steps.length - 1, index + 1));
-      if (event.key === 'ArrowLeft') setStepIndex((index) => Math.max(0, index - 1));
+    if (!isOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') closeTour();
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, open]);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isOpen]);
 
-  if (!open) return null;
+  const closeTour = () => {
+    localStorage.setItem(storageKey, 'complete');
+    setIsOpen(false);
+    setTargetRect(null);
+  };
 
-  const popoverWidth = Math.min(380, window.innerWidth - 32);
-  const popoverHeight = 300;
-  const popoverStyle = targetRect
-    ? {
-      left: Math.max(16, Math.min(targetRect.left + targetRect.width / 2 - popoverWidth / 2, window.innerWidth - popoverWidth - 16)),
-      top: targetRect.bottom + popoverHeight + 16 < window.innerHeight
-        ? targetRect.bottom + 16
-        : Math.max(16, targetRect.top - popoverHeight - 16),
-      width: popoverWidth,
-    }
-    : { left: '50%', top: '50%', width: popoverWidth, transform: 'translate(-50%, -50%)' };
+  const startTour = () => {
+    setStepIndex(0);
+    setIsOpen(true);
+  };
+
+  const goToStep = (nextIndex) => {
+    setTargetRect(null);
+    setStepIndex(nextIndex);
+  };
+
+  const preferredDialogWidth = Math.min(360, window.innerWidth - 32);
+  const hasRoomBelow = targetRect && window.innerHeight - targetRect.bottom >= 250;
+  const hasRoomAbove = targetRect && targetRect.top >= 250;
+  const rightSpace = targetRect ? window.innerWidth - targetRect.right - 32 : 0;
+  const leftSpace = targetRect ? targetRect.left - 32 : 0;
+  const placeBesideRight = targetRect && !hasRoomBelow && !hasRoomAbove && rightSpace >= 280;
+  const placeBesideLeft = targetRect && !hasRoomBelow && !hasRoomAbove && !placeBesideRight && leftSpace >= 280;
+  const dialogWidth = placeBesideRight
+    ? Math.min(preferredDialogWidth, rightSpace)
+    : placeBesideLeft
+      ? Math.min(preferredDialogWidth, leftSpace)
+      : preferredDialogWidth;
+  const dialogLeft = targetRect
+    ? placeBesideRight
+      ? targetRect.right + 16
+      : placeBesideLeft
+        ? targetRect.left - dialogWidth - 16
+        : Math.min(Math.max(16, targetRect.left + (targetRect.width - dialogWidth) / 2), window.innerWidth - dialogWidth - 16)
+    : 16;
+  const dialogTop = targetRect
+    ? hasRoomBelow
+      ? targetRect.bottom + 16
+      : hasRoomAbove
+        ? targetRect.top - 240
+        : Math.min(Math.max(16, targetRect.top + (targetRect.height - 230) / 2), window.innerHeight - 246)
+    : Math.max(16, window.innerHeight / 2 - 100);
 
   return (
-    <div className="tour-backdrop" role="presentation">
-      {targetRect && (
-        <div
-          className="tour-spotlight"
-          aria-hidden="true"
-          style={{ top: targetRect.top - 6, left: targetRect.left - 6, width: targetRect.width + 12, height: targetRect.height + 12 }}
-        />
+    <>
+      {!isOpen && (
+        <button type="button" className="tour-launcher" onClick={startTour} aria-label="Start product tour" title="Take a tour">
+          <span aria-hidden="true">?</span>
+          <span>Tour</span>
+        </button>
       )}
-      <section className="tour-popover" role="dialog" aria-modal="true" aria-labelledby="tour-title" style={popoverStyle}>
-        <div className="tour-progress-track"><span style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} /></div>
-        <p className="eyebrow">Dashboard tour · {stepIndex + 1} of {steps.length}</p>
-        <h2 id="tour-title">{step.title}</h2>
-        <p className="tour-copy">{step.body}</p>
-        <div className="tour-actions">
-          <button className="link-btn tour-skip" type="button" onClick={onClose}>Skip tour</button>
-          <div className="tour-step-actions">
-            <button className="secondary-btn" type="button" disabled={stepIndex === 0} onClick={() => setStepIndex((index) => Math.max(0, index - 1))}>Back</button>
-            {stepIndex < steps.length - 1 ? (
-              <button className="primary-btn" type="button" onClick={() => setStepIndex((index) => Math.min(steps.length - 1, index + 1))}>Next</button>
-            ) : (
-              <button className="primary-btn" type="button" onClick={onClose}>Finish tour</button>
-            )}
-          </div>
+      {isOpen && (
+        <div className="tour-layer">
+          {targetRect ? (
+            <>
+              <div className="tour-shade" style={{ top: 0, left: 0, right: 0, height: Math.max(0, targetRect.top) }} />
+              <div className="tour-shade" style={{ top: targetRect.bottom, left: 0, right: 0, bottom: 0 }} />
+              <div className="tour-shade" style={{ top: targetRect.top, left: 0, width: Math.max(0, targetRect.left), height: targetRect.height }} />
+              <div className="tour-shade" style={{ top: targetRect.top, left: targetRect.right, right: 0, height: targetRect.height }} />
+              <div
+                className="tour-spotlight"
+                style={{ top: targetRect.top - 6, left: targetRect.left - 6, width: targetRect.width + 12, height: targetRect.height + 12 }}
+              />
+            </>
+          ) : <div className="tour-shade tour-shade-full" />}
+
+          <section
+            className="tour-dialog"
+            style={{ width: dialogWidth, left: dialogLeft, top: dialogTop }}
+            role="dialog"
+            aria-label="Product tour"
+            aria-live="polite"
+          >
+            <div className="tour-dialog-topline">
+              <span>GETTING STARTED</span>
+              <button type="button" className="tour-close" onClick={closeTour} aria-label="Close tour">×</button>
+            </div>
+            <p className="tour-progress">Step {stepIndex + 1} of {tourSteps.length}</p>
+            <h2>{step.title}</h2>
+            <p className="tour-description">{step.description}</p>
+            <div className="tour-dialog-actions">
+              <button type="button" className="tour-skip" onClick={closeTour}>Skip tour</button>
+              <div className="tour-step-actions">
+                {stepIndex > 0 && (
+                  <button type="button" className="tour-back" onClick={() => goToStep(stepIndex - 1)}>Back</button>
+                )}
+                <button
+                  type="button"
+                  className="tour-next"
+                  onClick={() => (stepIndex === tourSteps.length - 1 ? closeTour() : goToStep(stepIndex + 1))}
+                >
+                  {stepIndex === tourSteps.length - 1 ? 'Finish' : 'Next'}
+                  {stepIndex < tourSteps.length - 1 && <span aria-hidden="true">→</span>}
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
+      )}
+    </>
   );
 };
 

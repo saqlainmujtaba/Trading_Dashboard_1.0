@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../../api';
+import Skeleton from '../common/Skeleton';
 import Sidebar from '../layout/Sidebar';
 import SummaryCards from './SummaryCards';
 import AccountSection from './AccountSection';
@@ -82,7 +83,7 @@ const defaultPayoutForm = {
   status: 'Pending',
 };
 
-const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, onStartTour }) => {
+const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, isLoading = false }) => {
   const location = useLocation();
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
@@ -111,10 +112,6 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
     return () => clearTimeout(timeout);
   }, [location.hash, location.pathname]);
-
-  useEffect(() => {
-    onRefresh();
-  }, [onRefresh]);
 
   const stats = useMemo(() => ({
     totalAccounts: dashboardData?.stats?.totalAccounts || dashboardData?.accounts?.length || 0,
@@ -266,23 +263,22 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
         theme={theme}
         onToggleTheme={onToggleTheme}
         onLogout={onLogout}
-        onStartTour={onStartTour}
       />
 
       <main className="content" id="overview">
-        <header className="topbar" data-tour="dashboard-overview">
+        <header className="topbar">
           <div>
             <p className="eyebrow">Portfolio Summary</p>
             <h1>Prop Firm Overview</h1>
           </div>
           <div className="topbar-actions">
-            <span className="chip success">{stats.activeAccounts} Active</span>
+            {isLoading ? <Skeleton className="skeleton-chip" /> : <span className="chip success">{stats.activeAccounts} Active</span>}
           </div>
         </header>
 
-        <SummaryCards stats={stats} formatCurrency={formatCurrency} />
+        <SummaryCards stats={stats} formatCurrency={formatCurrency} isLoading={isLoading} />
 
-        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} />
+        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} isLoading={isLoading} />
 
         <AccountSection
           accounts={accounts}
@@ -298,6 +294,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           showAccountForm={showAccountForm}
           setShowAccountForm={setShowAccountForm}
           confirmDelete={confirmDelete}
+          isLoading={isLoading}
         />
 
         <PlannedSection
@@ -313,6 +310,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           showPlannedForm={showPlannedForm}
           setShowPlannedForm={setShowPlannedForm}
           confirmDelete={confirmDelete}
+          isLoading={isLoading}
         />
 
         <HistorySection
@@ -340,6 +338,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           showPayoutForm={showPayoutForm}
           setShowPayoutForm={setShowPayoutForm}
           confirmDelete={confirmDelete}
+          isLoading={isLoading}
         />
 
         {deleteConfirm && (

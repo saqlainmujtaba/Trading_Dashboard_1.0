@@ -2,9 +2,9 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import api from './api';
 import AuthScreen from './components/auth/AuthScreen';
-import TourGuide from './components/common/TourGuide';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import ProfilePage from './components/dashboard/ProfilePage';
+import TourGuide from './components/common/TourGuide';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
 
@@ -14,33 +14,35 @@ const getInitialTheme = () => {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
+const createEmptyDashboardData = () => ({
+  accounts: [],
+  plannedAccounts: [],
+  trades: [],
+  payouts: [],
+  stats: {
+    totalAccounts: 0,
+    activeAccounts: 0,
+    totalFunding: 0,
+    plannedFunding: 0,
+    combinedFunding: 0,
+    totalProfit: 0,
+    totalPayouts: 0,
+    failedAccounts: 0,
+  },
+});
+
 const App = () => {
   const location = useLocation();
   const [theme, setTheme] = useState(getInitialTheme);
   const [user, setUser] = useState(() => {
+    if (!localStorage.getItem('token')) return null;
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [dashboardData, setDashboardData] = useState({
-    accounts: [],
-    plannedAccounts: [],
-    trades: [],
-    payouts: [],
-    stats: {
-      totalAccounts: 0,
-      activeAccounts: 0,
-      totalFunding: 0,
-      plannedFunding: 0,
-      combinedFunding: 0,
-      totalProfit: 0,
-      totalPayouts: 0,
-      failedAccounts: 0,
-    },
-  });
-
-  const [isReady, setIsReady] = useState(false);
-  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState(createEmptyDashboardData);
+  const [isReady, setIsReady] = useState(() => !localStorage.getItem('token'));
+  const [isDashboardLoading, setIsDashboardLoading] = useState(() => Boolean(localStorage.getItem('token')));
 
   useEffect(() => {
     document.body.dataset.theme = theme;
@@ -62,6 +64,7 @@ const App = () => {
     const expireSession = () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      setIsDashboardLoading(false);
       setUser(null);
     };
 
@@ -99,28 +102,22 @@ const App = () => {
   }, [user]);
 
   const toggleTheme = () => setTheme((current) => (current === 'light' ? 'dark' : 'light'));
-  const tourStorageKey = user ? `dashboardTourCompleted:${user.id || user._id || user.email}` : '';
-
-  useEffect(() => {
-    if (!isReady || !tourStorageKey || localStorage.getItem(tourStorageKey)) return undefined;
-    const timeoutId = window.setTimeout(() => setIsTourOpen(true), 650);
-    return () => window.clearTimeout(timeoutId);
-  }, [isReady, tourStorageKey]);
-
-  const closeTour = () => {
-    setIsTourOpen(false);
-    if (tourStorageKey) localStorage.setItem(tourStorageKey, 'true');
-  };
 
   const loadDashboardData = async () => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      setIsDashboardLoading(false);
+      return;
+    }
 
+    setIsDashboardLoading(true);
     try {
       const response = await api.get('/dashboard');
       setDashboardData(response.data);
     } catch (error) {
       console.error('Failed to load dashboard data', error);
+    } finally {
+      setIsDashboardLoading(false);
     }
   };
 
@@ -128,6 +125,7 @@ const App = () => {
     const validateSession = async () => {
       const token = localStorage.getItem('token');
       if (!token) {
+        setIsDashboardLoading(false);
         setIsReady(true);
         return;
       }
@@ -140,6 +138,7 @@ const App = () => {
       } catch (error) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        setIsDashboardLoading(false);
         setUser(null);
       } finally {
         setIsReady(true);
@@ -149,7 +148,33 @@ const App = () => {
     validateSession();
   }, []);
 
-  if (!isReady) return <div className="loading-screen">Loading dashboard...</div>;
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setDashboardData(createEmptyDashboardData());
+    setIsDashboardLoading(false);
+    setUser(null);
+  };
+
+  const handleAuthSuccess = (userData) => {
+    setDashboardData(createEmptyDashboardData());
+    setUser(userData);
+    loadDashboardData();
+  };
+
+  if (!isReady) {
+    return (
+      <DashboardLayout
+        user={user || { name: 'Trader' }}
+        dashboardData={dashboardData}
+        onRefresh={loadDashboardData}
+        onLogout={handleLogout}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        isLoading
+      />
+    );
+  }
 
   const dashboardPage = user ? (
     <DashboardLayout
@@ -158,12 +183,8 @@ const App = () => {
       onRefresh={loadDashboardData}
       theme={theme}
       onToggleTheme={toggleTheme}
-      onStartTour={() => setIsTourOpen(true)}
-      onLogout={() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-      }}
+      onLogout={handleLogout}
+      isLoading={isDashboardLoading}
     />
   ) : (
     <Navigate to="/" replace />
@@ -172,60 +193,60 @@ const App = () => {
   return (
     <>
       <Routes>
-        <Route
-          path="/"
-          element={user ? dashboardPage : <AuthScreen onAuthSuccess={(userData) => { setUser(userData); loadDashboardData(); }} />}
-        />
-        <Route
-          path="/dashboard"
-          element={<Navigate to={`/${location.search}${location.hash}`} replace />}
-        />
-        <Route
-          path="/analytics"
-          element={
-            user ? (
-              <Suspense fallback={<div className="loading-screen">Loading analytics...</div>}>
-                <TradeAnalyticsPage
-                  user={user}
-                  dashboardData={dashboardData}
-                  onLogout={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    setUser(null);
-                  }}
-                  theme={theme}
-                  onToggleTheme={toggleTheme}
-                  onStartTour={() => setIsTourOpen(true)}
-                />
-              </Suspense>
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            user ? (
-              <ProfilePage
+      <Route
+        path="/"
+        element={user ? dashboardPage : <AuthScreen onAuthSuccess={handleAuthSuccess} />}
+      />
+      <Route
+        path="/dashboard"
+        element={<Navigate to={`/${location.search}${location.hash}`} replace />}
+      />
+      <Route
+        path="/analytics"
+        element={
+          user ? (
+            <Suspense fallback={(
+              <DashboardLayout
                 user={user}
-                onLogout={() => {
-                  localStorage.removeItem('token');
-                  localStorage.removeItem('user');
-                  setUser(null);
-                }}
+                dashboardData={dashboardData}
+                onRefresh={loadDashboardData}
+                onLogout={handleLogout}
                 theme={theme}
                 onToggleTheme={toggleTheme}
-                onStartTour={() => setIsTourOpen(true)}
+                isLoading
               />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
+            )}>
+              <TradeAnalyticsPage
+                user={user}
+                dashboardData={dashboardData}
+                onLogout={handleLogout}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+              />
+            </Suspense>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          user ? (
+            <ProfilePage
+              user={user}
+              onLogout={handleLogout}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <TourGuide open={isTourOpen} onClose={closeTour} />
+      {user && <TourGuide user={user} />}
     </>
   );
 };
