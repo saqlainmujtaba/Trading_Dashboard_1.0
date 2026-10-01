@@ -95,9 +95,12 @@ const downloadFile = (content, type, filename) => {
 
 const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleTheme }) => {
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
+  const [tradePageSize, setTradePageSize] = useState(10);
+  const [tradePage, setTradePage] = useState(1);
   const [performanceSortBy, setPerformanceSortBy] = useState('pnl.desc');
   const [chartTypes, setChartTypes] = useState({
     cumulative: 'area',
+    dailyPnl: 'bar',
     accountPnl: 'bar',
     trades: 'bar',
     payouts: 'bar',
@@ -126,6 +129,19 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
       && (!filters.result || (filters.result === 'win' ? pnl > 0 : filters.result === 'loss' ? pnl < 0 : pnl === 0));
   }), [allTrades, filters]);
   const trades = sortRows(filteredTrades, tradeSortBy);
+  const tradePageCount = tradePageSize === 'all'
+    ? 1
+    : Math.max(1, Math.ceil(trades.length / tradePageSize));
+  const currentTradePage = Math.min(tradePage, tradePageCount);
+  const visibleTrades = tradePageSize === 'all'
+    ? trades
+    : trades.slice((currentTradePage - 1) * tradePageSize, currentTradePage * tradePageSize);
+  const firstVisibleTrade = trades.length
+    ? (currentTradePage - 1) * (tradePageSize === 'all' ? trades.length : tradePageSize) + 1
+    : 0;
+  const lastVisibleTrade = tradePageSize === 'all'
+    ? trades.length
+    : Math.min(currentTradePage * tradePageSize, trades.length);
 
   const accountPerformance = useMemo(() => {
     const totals = new Map();
@@ -241,7 +257,14 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
   }, [plannedAccounts]);
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
-  const updateFilter = (field, value) => setFilters((current) => ({ ...current, [field]: value }));
+  const updateFilter = (field, value) => {
+    setTradePage(1);
+    setFilters((current) => ({ ...current, [field]: value }));
+  };
+  const clearFilters = () => {
+    setTradePage(1);
+    setFilters(initialFilters);
+  };
   const updateChartType = (chart, type) => setChartTypes((current) => ({ ...current, [chart]: type }));
 
   const exportCsv = () => {
@@ -342,7 +365,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             </div>
             <div className="section-actions">
               <span className="section-tag">{trades.length} of {allTrades.length} trades</span>
-              {hasActiveFilters && <button className="secondary-btn" type="button" onClick={() => setFilters(initialFilters)}>Clear filters</button>}
+              {hasActiveFilters && <button className="secondary-btn" type="button" onClick={clearFilters}>Clear filters</button>}
             </div>
           </div>
           <div className="analytics-filter-grid">
@@ -397,7 +420,12 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             <div className="section-head">
               <h2>Trade History</h2>
               <div className="section-actions">
-                <SortControl value={tradeSortBy} options={analyticsTradeSortOptions} onChange={setTradeSortBy} label="Sort analytics trades" />
+                <SortControl
+                  value={tradeSortBy}
+                  options={analyticsTradeSortOptions}
+                  onChange={(value) => { setTradeSortBy(value); setTradePage(1); }}
+                  label="Sort analytics trades"
+                />
                 <span className="section-tag">{trades.length} trades</span>
               </div>
             </div>
@@ -415,7 +443,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
                 </thead>
                 <tbody>
                   {trades.length ? (
-                    trades.map((trade) => (
+                    visibleTrades.map((trade) => (
                       <tr key={trade._id || `${trade.account}-${trade.date}-${trade.pair}`}>
                         <td>{trade.date || '—'}</td>
                         <td>{trade.account || '—'}</td>
@@ -433,6 +461,46 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="trade-pagination analytics-trade-pagination" aria-label="Analytics trade history pages">
+              <label className="trade-page-size" htmlFor="analytics-trade-page-size">
+                <span>Rows per page</span>
+                <select
+                  id="analytics-trade-page-size"
+                  value={tradePageSize}
+                  onChange={(event) => {
+                    const nextSize = event.target.value === 'all' ? 'all' : Number(event.target.value);
+                    setTradePageSize(nextSize);
+                    setTradePage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value="all">All</option>
+                </select>
+              </label>
+              <span className="trade-page-summary">Showing {firstVisibleTrade}-{lastVisibleTrade} of {trades.length} trades</span>
+              <div className="trade-page-buttons">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={currentTradePage <= 1 || tradePageSize === 'all'}
+                  onClick={() => setTradePage((page) => Math.max(1, page - 1))}
+                >
+                  Previous
+                </button>
+                <span>Page {currentTradePage} of {tradePageCount}</span>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={currentTradePage >= tradePageCount || tradePageSize === 'all'}
+                  onClick={() => setTradePage((page) => Math.min(tradePageCount, page + 1))}
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
 
@@ -471,6 +539,30 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
                 <AnalyticsChart type={chartTypes.accountPnl} data={sortedAccountPerformance} categoryKey="name" series={[{ dataKey: 'pnl', name: 'Trade P/L', color: '#0f766e' }]} horizontal={chartTypes.accountPnl === 'bar'} theme={theme} />
               </div>
             ) : <p className="empty-state">No account trade data matches these filters.</p>}
+          </div>
+
+          <div className="analytics-panel chart-panel">
+            <div className="section-head">
+              <h2>Daily P/L</h2>
+              <ChartTypeSelect
+                value={chartTypes.dailyPnl}
+                onChange={(type) => updateChartType('dailyPnl', type)}
+                options={trendChartTypes}
+                label="daily P/L"
+              />
+            </div>
+            {dailyPerformance.length ? (
+              <div className="analytics-chart">
+                <AnalyticsChart
+                  type={chartTypes.dailyPnl}
+                  data={dailyPerformance}
+                  categoryKey="date"
+                  series={[{ dataKey: 'dailyPnl', name: 'Daily P/L', color: '#2563eb' }]}
+                  dateAxis
+                  theme={theme}
+                />
+              </div>
+            ) : <p className="empty-state">No trade data matches these filters.</p>}
           </div>
         </section>
 
