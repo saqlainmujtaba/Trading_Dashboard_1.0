@@ -44,6 +44,7 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
         <Link to="/#planned" onClick={handleNavClick}>Planned</Link>
         <Link to="/#portfolio" onClick={handleNavClick}>Portfolio</Link>
         <Link to="/#history" onClick={handleNavClick}>History</Link>
+        <Link to="/#payouts" onClick={handleNavClick}>Payouts</Link>
         <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
         <Link to="/profile" onClick={handleNavClick}>Profile</Link>
 

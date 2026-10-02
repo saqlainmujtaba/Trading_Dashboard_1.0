@@ -663,7 +663,7 @@ const HistorySection = ({
         </div>
       </div>
 
-      <div>
+      <div id="payouts">
         <div className="section-head">
           <h2>Payouts</h2>
           <div className="section-actions">

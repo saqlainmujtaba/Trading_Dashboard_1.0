@@ -468,7 +468,7 @@ th {
 .portfolio-metrics strong { text-align: right; }
 .history-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
   width: 100%;
   max-width: 100%;
@@ -596,13 +596,16 @@ th {
 }
 .analytics-layout {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
   min-width: 0;
 }
 .analytics-layout > * {
   min-width: 0;
+}
+.analytics-lower-panel {
+  margin-top: 4px;
 }
 .analytics-chart-grid {
   display: grid;

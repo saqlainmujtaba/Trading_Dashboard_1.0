@@ -268,7 +268,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
   const updateChartType = (chart, type) => setChartTypes((current) => ({ ...current, [chart]: type }));
 
   const exportCsv = () => {
-    const columns = ['Date', 'Account', 'Prop firm', 'Pair', 'Direction', 'Entry', 'Exit', 'Lots', 'Risk', 'P/L', 'R/R', 'Setup', 'Notes'];
+    const columns = ['Date', 'Account', 'Prop firm', 'Pair', 'Direction', 'Entry', 'Exit', 'Lots', 'SL', 'TP', 'Risk', 'P/L', 'R/R', 'Setup', 'Notes'];
     const rows = trades.map((trade) => [
       trade.date,
       trade.account,
@@ -278,6 +278,8 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
       trade.entryPrice,
       trade.exitPrice,
       trade.lotSize,
+      trade.sl,
+      trade.tp,
       trade.risk,
       getTradePnl(trade),
       trade.rr,
@@ -301,10 +303,10 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
     document.text(`Date range: ${filters.dateFrom || 'Any'} to ${filters.dateTo || 'Any'}  |  Account: ${filters.account || 'All'}  |  Pair: ${filters.pair || 'All'}`, 14, 30);
     autoTable(document, {
       startY: 36,
-      head: [['Date', 'Account', 'Pair', 'Side', 'Entry', 'Exit', 'Lots', 'Risk', 'P/L', 'R/R', 'Setup', 'Notes']],
+      head: [['Date', 'Account', 'Pair', 'Side', 'Entry', 'Exit', 'Lots', 'SL', 'TP', 'Risk', 'P/L', 'R/R', 'Setup', 'Notes']],
       body: trades.map((trade) => [
         trade.date || '', trade.account || '', trade.pair || '', trade.buySell || '',
-        trade.entryPrice ?? '', trade.exitPrice ?? '', trade.lotSize ?? '', trade.risk ?? '',
+        trade.entryPrice ?? '', trade.exitPrice ?? '', trade.lotSize ?? '', trade.sl ?? '', trade.tp ?? '', trade.risk ?? '',
         formatCurrency(getTradePnl(trade)), trade.rr ?? '', trade.reason || '', trade.notes || '',
       ]),
       styles: { fontSize: 8, cellPadding: 2 },
@@ -415,156 +417,164 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
           </div>
         </section>
 
-        <section className="analytics-layout">
-          <div className="analytics-panel">
-            <div className="section-head">
-              <h2>Trade History</h2>
-              <div className="section-actions">
-                <SortControl
-                  value={tradeSortBy}
-                  options={analyticsTradeSortOptions}
-                  onChange={(value) => { setTradeSortBy(value); setTradePage(1); }}
-                  label="Sort analytics trades"
-                />
-                <span className="section-tag">{trades.length} trades</span>
-              </div>
+        <section className="analytics-panel">
+          <div className="section-head">
+            <h2>Trade History</h2>
+            <div className="section-actions">
+              <SortControl
+                value={tradeSortBy}
+                options={analyticsTradeSortOptions}
+                onChange={(value) => { setTradeSortBy(value); setTradePage(1); }}
+                label="Sort analytics trades"
+              />
+              <span className="section-tag">{trades.length} trades</span>
             </div>
+          </div>
 
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Account</th>
-                    <th>Pair</th>
-                    <th>Direction</th>
-                    <th>P/L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.length ? (
-                    visibleTrades.map((trade) => (
-                      <tr key={trade._id || `${trade.account}-${trade.date}-${trade.pair}`}>
-                        <td>{trade.date || '—'}</td>
-                        <td>{trade.account || '—'}</td>
-                        <td>{trade.pair || '—'}</td>
-                        <td>{trade.buySell || '—'}</td>
-                        <td className={getTradePnl(trade) >= 0 ? 'positive-number' : 'negative-number'}>
-                          {formatCurrency(getTradePnl(trade))}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5" className="empty-cell">No trades recorded yet.</td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Account</th>
+                  <th>Pair</th>
+                  <th>Direction</th>
+                  <th>Entry</th>
+                  <th>Exit</th>
+                  <th>Lots</th>
+                  <th>SL</th>
+                  <th>TP</th>
+                  <th>P/L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.length ? (
+                  visibleTrades.map((trade) => (
+                    <tr key={trade._id || `${trade.account}-${trade.date}-${trade.pair}`}>
+                      <td>{trade.date || '—'}</td>
+                      <td>{trade.account || '—'}</td>
+                      <td>{trade.pair || '—'}</td>
+                      <td>{trade.buySell || '—'}</td>
+                      <td>{Number(trade.entryPrice || 0).toFixed(5)}</td>
+                      <td>{Number(trade.exitPrice || 0).toFixed(5)}</td>
+                      <td>{Number(trade.lotSize || 0).toFixed(2)}</td>
+                      <td>{Number(trade.sl || 0).toFixed(5)}</td>
+                      <td>{Number(trade.tp || 0).toFixed(5)}</td>
+                      <td className={getTradePnl(trade) >= 0 ? 'positive-number' : 'negative-number'}>
+                        {formatCurrency(getTradePnl(trade))}
+                      </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="trade-pagination analytics-trade-pagination" aria-label="Analytics trade history pages">
-              <label className="trade-page-size" htmlFor="analytics-trade-page-size">
-                <span>Rows per page</span>
-                <select
-                  id="analytics-trade-page-size"
-                  value={tradePageSize}
-                  onChange={(event) => {
-                    const nextSize = event.target.value === 'all' ? 'all' : Number(event.target.value);
-                    setTradePageSize(nextSize);
-                    setTradePage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value="all">All</option>
-                </select>
-              </label>
-              <span className="trade-page-summary">Showing {firstVisibleTrade}-{lastVisibleTrade} of {trades.length} trades</span>
-              <div className="trade-page-buttons">
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  disabled={currentTradePage <= 1 || tradePageSize === 'all'}
-                  onClick={() => setTradePage((page) => Math.max(1, page - 1))}
-                >
-                  Previous
-                </button>
-                <span>Page {currentTradePage} of {tradePageCount}</span>
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  disabled={currentTradePage >= tradePageCount || tradePageSize === 'all'}
-                  onClick={() => setTradePage((page) => Math.min(tradePageCount, page + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="10" className="empty-cell">No trades recorded yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
-          <div className="analytics-panel chart-panel">
-            <div className="section-head">
-              <h2>Cumulative P/L</h2>
-              <ChartTypeSelect
-                value={chartTypes.cumulative}
-                onChange={(type) => updateChartType('cumulative', type)}
-                options={trendChartTypes}
-                label="cumulative P/L"
-              />
+          <div className="trade-pagination analytics-trade-pagination" aria-label="Analytics trade history pages">
+            <label className="trade-page-size" htmlFor="analytics-trade-page-size">
+              <span>Rows per page</span>
+              <select
+                id="analytics-trade-page-size"
+                value={tradePageSize}
+                onChange={(event) => {
+                  const nextSize = event.target.value === 'all' ? 'all' : Number(event.target.value);
+                  setTradePageSize(nextSize);
+                  setTradePage(1);
+                }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value="all">All</option>
+              </select>
+            </label>
+            <span className="trade-page-summary">Showing {firstVisibleTrade}-{lastVisibleTrade} of {trades.length} trades</span>
+            <div className="trade-page-buttons">
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={currentTradePage <= 1 || tradePageSize === 'all'}
+                onClick={() => setTradePage((page) => Math.max(1, page - 1))}
+              >
+                Previous
+              </button>
+              <span>Page {currentTradePage} of {tradePageCount}</span>
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={currentTradePage >= tradePageCount || tradePageSize === 'all'}
+                onClick={() => setTradePage((page) => Math.min(tradePageCount, page + 1))}
+              >
+                Next
+              </button>
             </div>
-            {dailyPerformance.length ? (
-              <div className="analytics-chart">
-                <AnalyticsChart type={chartTypes.cumulative} data={dailyPerformance} categoryKey="date" series={[{ dataKey: 'cumulativePnl', name: 'Cumulative P/L' }]} dateAxis theme={theme} />
-              </div>
-            ) : <p className="empty-state">No trade data matches these filters.</p>}
-          </div>
-
-          <div className="analytics-panel chart-panel">
-            <div className="section-head">
-              <h2>Account Performance</h2>
-              <div className="section-actions">
-                <ChartTypeSelect
-                  value={chartTypes.accountPnl}
-                  onChange={(type) => updateChartType('accountPnl', type)}
-                  options={categoryChartTypes.filter((option) => option.value !== 'pie')}
-                  label="account performance"
-                />
-                <SortControl value={performanceSortBy} options={performanceSortOptions} onChange={setPerformanceSortBy} label="Sort account performance" />
-              </div>
-            </div>
-            {sortedAccountPerformance.length ? (
-              <div className="analytics-chart account-performance-chart">
-                <AnalyticsChart type={chartTypes.accountPnl} data={sortedAccountPerformance} categoryKey="name" series={[{ dataKey: 'pnl', name: 'Trade P/L', color: '#0f766e' }]} horizontal={chartTypes.accountPnl === 'bar'} theme={theme} />
-              </div>
-            ) : <p className="empty-state">No account trade data matches these filters.</p>}
-          </div>
-
-          <div className="analytics-panel chart-panel">
-            <div className="section-head">
-              <h2>Daily P/L</h2>
-              <ChartTypeSelect
-                value={chartTypes.dailyPnl}
-                onChange={(type) => updateChartType('dailyPnl', type)}
-                options={trendChartTypes}
-                label="daily P/L"
-              />
-            </div>
-            {dailyPerformance.length ? (
-              <div className="analytics-chart">
-                <AnalyticsChart
-                  type={chartTypes.dailyPnl}
-                  data={dailyPerformance}
-                  categoryKey="date"
-                  series={[{ dataKey: 'dailyPnl', name: 'Daily P/L', color: '#2563eb' }]}
-                  dateAxis
-                  theme={theme}
-                />
-              </div>
-            ) : <p className="empty-state">No trade data matches these filters.</p>}
           </div>
         </section>
+
+        <div className="analytics-panel chart-panel analytics-lower-panel">
+          <div className="section-head">
+            <h2>Cumulative P/L</h2>
+            <ChartTypeSelect
+              value={chartTypes.cumulative}
+              onChange={(type) => updateChartType('cumulative', type)}
+              options={trendChartTypes}
+              label="cumulative P/L"
+            />
+          </div>
+          {dailyPerformance.length ? (
+            <div className="analytics-chart">
+              <AnalyticsChart type={chartTypes.cumulative} data={dailyPerformance} categoryKey="date" series={[{ dataKey: 'cumulativePnl', name: 'Cumulative P/L' }]} dateAxis theme={theme} />
+            </div>
+          ) : <p className="empty-state">No trade data matches these filters.</p>}
+        </div>
+
+        <div className="analytics-panel chart-panel">
+          <div className="section-head">
+            <h2>Account Performance</h2>
+            <div className="section-actions">
+              <ChartTypeSelect
+                value={chartTypes.accountPnl}
+                onChange={(type) => updateChartType('accountPnl', type)}
+                options={categoryChartTypes.filter((option) => option.value !== 'pie')}
+                label="account performance"
+              />
+              <SortControl value={performanceSortBy} options={performanceSortOptions} onChange={setPerformanceSortBy} label="Sort account performance" />
+            </div>
+          </div>
+          {sortedAccountPerformance.length ? (
+            <div className="analytics-chart account-performance-chart">
+              <AnalyticsChart type={chartTypes.accountPnl} data={sortedAccountPerformance} categoryKey="name" series={[{ dataKey: 'pnl', name: 'Trade P/L', color: '#0f766e' }]} horizontal={chartTypes.accountPnl === 'bar'} theme={theme} />
+            </div>
+          ) : <p className="empty-state">No account trade data matches these filters.</p>}
+        </div>
+
+        <div className="analytics-panel chart-panel">
+          <div className="section-head">
+            <h2>Daily P/L</h2>
+            <ChartTypeSelect
+              value={chartTypes.dailyPnl}
+              onChange={(type) => updateChartType('dailyPnl', type)}
+              options={trendChartTypes}
+              label="daily P/L"
+            />
+          </div>
+          {dailyPerformance.length ? (
+            <div className="analytics-chart">
+              <AnalyticsChart
+                type={chartTypes.dailyPnl}
+                data={dailyPerformance}
+                categoryKey="date"
+                series={[{ dataKey: 'dailyPnl', name: 'Daily P/L', color: '#2563eb' }]}
+                dateAxis
+                theme={theme}
+              />
+            </div>
+          ) : <p className="empty-state">No trade data matches these filters.</p>}
+        </div>
 
         <section className="analytics-chart-grid" aria-label="Additional trading analytics">
           <div className="analytics-panel chart-panel">
