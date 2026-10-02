@@ -9,7 +9,7 @@ const SummaryCards = ({ stats, formatCurrency, isLoading = false, loadingSection
     ['Total Payouts', formatCurrency(stats.totalPayouts), ['payouts']],
     ['Failed Accounts', stats.failedAccounts, ['accounts']],
     ['Planned Funding', formatCurrency(stats.plannedFunding), ['planned']],
-    ['ExpectedCombined Funding', formatCurrency(stats.combinedFunding), ['accounts', 'planned']],
+    ['Expected Combined Funding', formatCurrency(stats.combinedFunding), ['accounts', 'planned']],
   ];
 
   return (

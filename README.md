@@ -46,6 +46,10 @@ Personal Trading Dashboard/
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
+├── mobile/
+│   ├── App.js
+│   ├── app.json
+│   └── package.json
 ├── server/
 │   ├── src/
 │   └── package.json
@@ -116,6 +120,20 @@ npm run dev
 ```
 
 Then open the frontend URL shown by Vite in the browser.
+
+## Android App
+
+`mobile 2.0/` is the Kotlin Android app. It packages the existing web client, preserving the web app's screens, theme, profile, analytics, account management, history import, and reports. The APK build reads the API URL from `mobile/.env`.
+
+Install Android Studio, Android SDK Platform 36, and JDK 17. From the repository root, build the debug APK with:
+
+```powershell
+& '.\mobile 2.0\gradlew.bat' -p 'mobile 2.0' assembleDebug
+```
+
+The output is `mobile 2.0/app/build/outputs/apk/debug/app-debug.apk`. The first build packages the current web client automatically. Deploy the backend CORS update so it allows the app asset origin `https://appassets.androidplatform.net`.
+
+The earlier Expo client remains in `mobile/` for development, but `mobile 2.0/` is the Kotlin APK target.
 
 ## Main Modules
 

@@ -440,13 +440,17 @@ th, td {
   padding: 14px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
+tr > :last-child { border-right: 0; }
 th {
   color: var(--muted);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+tbody tr:nth-child(even) { background: var(--panel-alt); }
+tbody tr:hover { background: var(--primary-soft); }
 .priority-tag { background: rgba(245, 158, 11, 0.14); color: var(--warning); }
 .portfolio-grid {
   display: grid;

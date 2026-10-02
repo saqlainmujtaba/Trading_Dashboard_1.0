@@ -85,7 +85,15 @@ const formatShortDate = (date) => new Date(`${date}T00:00:00`).toLocaleDateStrin
 const csvValue = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 
 const downloadFile = (content, type, filename) => {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+  const blob = new Blob([content], { type });
+  if (window.AndroidExport?.saveFile) {
+    const reader = new FileReader();
+    reader.onload = () => window.AndroidExport.saveFile(filename, type, String(reader.result).split(',')[1]);
+    reader.readAsDataURL(blob);
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -313,7 +321,13 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
       headStyles: { fillColor: [29, 78, 76] },
       theme: 'grid',
     });
-    document.save(`trading-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+    const filename = `trading-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+    if (window.AndroidExport?.saveFile) {
+      const dataUri = document.output('datauristring');
+      window.AndroidExport.saveFile(filename, 'application/pdf', dataUri.split(',')[1]);
+    } else {
+      document.save(filename);
+    }
   };
 
   return (

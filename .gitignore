@@ -12,6 +12,15 @@ server/dist/
 .env.*
 client/.env
 server/.env
+mobile/.env
+mobile/.expo/
+mobile/dist/
+mobile/android/
+mobile/ios/
+mobile 2.0/.gradle/
+mobile 2.0/local.properties
+mobile 2.0/**/build/
+mobile/
 
 # Logs
 npm-debug.log*
@@ -30,3 +39,4 @@ Thumbs.db
 *.local
 ReportHistory-*.xlsx
 *.xlsx
+

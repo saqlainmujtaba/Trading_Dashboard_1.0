@@ -14,11 +14,12 @@ const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean);
+const androidAssetOrigin = 'https://appassets.androidplatform.net';
 
 app.use(cors({
   exposedHeaders: ['X-Auth-Token'],
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || origin === androidAssetOrigin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
