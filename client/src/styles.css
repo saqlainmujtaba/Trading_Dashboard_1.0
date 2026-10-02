@@ -447,12 +447,8 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.table-wrap tbody tr:nth-child(even) > td {
-  background-color: color-mix(in srgb, var(--primary) 10%, var(--panel));
-}
-.table-wrap tbody tr:hover > td {
-  background-color: color-mix(in srgb, var(--primary) 16%, var(--panel));
-}
+tbody tr:nth-child(even) { background: var(--panel-alt); }
+tbody tr:hover { background: var(--primary-soft); }
 .priority-tag { background: rgba(245, 158, 11, 0.14); color: var(--warning); }
 .portfolio-grid {
   display: grid;
