@@ -1078,7 +1078,7 @@ th {
   .summary-grid { grid-template-columns: repeat(5, minmax(180px, 1fr)); }
   .account-grid { grid-template-columns: repeat(3, minmax(280px, 1fr)); }
   .portfolio-grid { grid-template-columns: repeat(4, minmax(220px, 1fr)); }
-  .history-layout { grid-template-columns: 1.8fr 1fr; }
+  .history-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1200px) {
