@@ -440,7 +440,7 @@ th, td {
   padding: 14px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
+  border-right: 1px solid color-mix(in srgb, var(--muted) 30%, transparent);
 }
 tr > :last-child { border-right: 0; }
 th {
@@ -449,8 +449,12 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-tbody tr:nth-child(even) { background: var(--panel-alt); }
-tbody tr:hover { background: var(--primary-soft); }
+.table-wrap tbody tr:nth-child(even) > td {
+  background-color: color-mix(in srgb, var(--primary) 10%, var(--panel));
+}
+.table-wrap tbody tr:hover > td {
+  background-color: color-mix(in srgb, var(--primary) 16%, var(--panel));
+}
 .priority-tag { background: rgba(245, 158, 11, 0.14); color: var(--warning); }
 .portfolio-grid {
   display: grid;
