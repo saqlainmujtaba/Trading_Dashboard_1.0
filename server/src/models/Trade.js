@@ -10,6 +10,8 @@ const tradeSchema = new mongoose.Schema(
     entryPrice: { type: Number, default: 0 },
     exitPrice: { type: Number, default: 0 },
     lotSize: { type: Number, default: 0 },
+    sl: { type: Number, default: 0 },
+    tp: { type: Number, default: 0 },
     risk: { type: Number, default: 0 },
     pnl: { type: Number, default: 0 },
     rr: { type: String, default: '' },

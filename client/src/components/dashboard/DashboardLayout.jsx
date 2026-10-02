@@ -66,6 +66,8 @@ const defaultTradeForm = {
   entryPrice: 1.1,
   exitPrice: 1.12,
   lotSize: 0.1,
+  sl: 1.09,
+  tp: 1.13,
   risk: 1,
   pnl: 0,
   rr: 1,

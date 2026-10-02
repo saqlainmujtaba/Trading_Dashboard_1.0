@@ -15,6 +15,8 @@ const columnAliases = {
   commission: ['commission', 'fees', 'fee'],
   swap: ['swap', 'rollover', 'financing'],
   risk: ['riskamount', 'risk', 'riskusd'],
+  sl: ['sl', 'stoploss', 'stoplossprice', 'stop', 'stoplevel'],
+  tp: ['tp', 'takeprofit', 'takeprofitprice', 'target', 'targetlevel'],
   rr: ['riskreward', 'riskratio', 'rr'],
   reason: ['setup', 'reason', 'strategy', 'label'],
   notes: ['notes', 'comment', 'comments', 'memo'],
@@ -118,6 +120,8 @@ const makeTrade = (row, overrides = {}) => {
   const exitPrice = parseNumber(overrides.exitPrice ?? readValue(row, 'exitPrice'));
   const rawVolume = parseNumber(overrides.volume ?? readValue(row, 'volume'));
   const lotSize = rawVolume && rawVolume > 1000 ? rawVolume / 100000 : rawVolume;
+  const sl = parseNumber(overrides.sl ?? readValue(row, 'sl'));
+  const tp = parseNumber(overrides.tp ?? readValue(row, 'tp'));
   const importedPnl = parseNumber(overrides.pnl ?? readValue(row, 'pnl'));
   const pnlColumn = Object.keys(row).find((column) => columnAliases.pnl.includes(normalizeHeader(column)));
   const pnlIsNet = pnlColumn && ['netprofit', 'netpnl', 'realizedpnl', 'realizedprofit', 'profitloss', 'pnl'].includes(normalizeHeader(pnlColumn));
@@ -132,6 +136,8 @@ const makeTrade = (row, overrides = {}) => {
     entryPrice: entryPrice ?? 0,
     exitPrice: exitPrice ?? 0,
     lotSize: lotSize ?? 0,
+    sl: sl ?? 0,
+    tp: tp ?? 0,
     risk: parseNumber(readValue(row, 'risk')) ?? 0,
     rr: parseNumber(readValue(row, 'rr')),
     rrMode: 'manual',

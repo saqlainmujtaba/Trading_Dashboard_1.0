@@ -21,7 +21,7 @@ const plannedAccountFields = [
 ];
 const tradeFields = [
   'account', 'propFirm', 'pair', 'buySell', 'entryPrice', 'exitPrice', 'lotSize',
-  'risk', 'rr', 'rrMode', 'reason', 'screenshot', 'notes', 'date',
+  'sl', 'tp', 'risk', 'rr', 'rrMode', 'reason', 'screenshot', 'notes', 'date',
 ];
 const payoutFields = ['account', 'date', 'amount', 'method', 'status'];
 
@@ -64,6 +64,8 @@ const getTradeImportKey = (trade) => {
     Number(trade.entryPrice || 0).toFixed(8),
     Number(trade.exitPrice || 0).toFixed(8),
     Number(trade.lotSize || 0).toFixed(8),
+    Number(trade.sl || 0).toFixed(8),
+    Number(trade.tp || 0).toFixed(8),
     Number(trade.pnl || 0).toFixed(2),
   ]);
 };

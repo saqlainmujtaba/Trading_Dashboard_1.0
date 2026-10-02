@@ -417,6 +417,28 @@ const HistorySection = ({
                       placeholder="0.10"
                     />
                   </FormField>
+                  <FormField label="SL">
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={tradeForm.sl}
+                      onChange={(e) =>
+                        setTradeForm({ ...tradeForm, sl: Number(e.target.value) })
+                      }
+                      placeholder="1.0900"
+                    />
+                  </FormField>
+                  <FormField label="TP">
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={tradeForm.tp}
+                      onChange={(e) =>
+                        setTradeForm({ ...tradeForm, tp: Number(e.target.value) })
+                      }
+                      placeholder="1.1300"
+                    />
+                  </FormField>
                   <FormField label="Risk amount ($)" className="premium-field">
                     <input
                       type="number"
@@ -509,6 +531,11 @@ const HistorySection = ({
                 <th>Prop firm</th>
                 <th>Pair</th>
                 <th>Buy/Sell</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>Lot</th>
+                <th>SL</th>
+                <th>TP</th>
                 <th>Risk ($)</th>
                 <th>P/L</th>
                 <th>R:R</th>
@@ -519,7 +546,7 @@ const HistorySection = ({
             <tbody>
               {isLoading || isTradesLoading ? [0, 1, 2, 3, 4].map((row) => (
                 <tr key={row} aria-hidden="true">
-                  <td colSpan="10"><Skeleton className="skeleton-table-row" /></td>
+                  <td colSpan="15"><Skeleton className="skeleton-table-row" /></td>
                 </tr>
               )) : visibleTrades.length ? visibleTrades.map((trade) => (
                 <tr key={trade._id}>
@@ -528,6 +555,11 @@ const HistorySection = ({
                   <td>{trade.propFirm}</td>
                   <td>{trade.pair}</td>
                   <td>{trade.buySell}</td>
+                  <td>{Number(trade.entryPrice || 0).toFixed(5)}</td>
+                  <td>{Number(trade.exitPrice || 0).toFixed(5)}</td>
+                  <td>{Number(trade.lotSize || 0).toFixed(2)}</td>
+                  <td>{Number(trade.sl || 0).toFixed(5)}</td>
+                  <td>{Number(trade.tp || 0).toFixed(5)}</td>
                   <td>{formatCurrency(trade.risk)}</td>
                   <td>
                     {trade.pnl > 0 ? "+" : ""}
@@ -551,6 +583,8 @@ const HistorySection = ({
                           customPair: isCustomPair ? normalizedPair : '',
                           rr: Number(trade.rr) || 0,
                           risk: Number(trade.risk) || 0,
+                          sl: Number(trade.sl || defaultTradeForm.sl),
+                          tp: Number(trade.tp || defaultTradeForm.tp),
                           entryPrice: Number(trade.entryPrice || defaultTradeForm.entryPrice),
                           exitPrice: Number(trade.exitPrice || defaultTradeForm.exitPrice),
                           lotSize: Number(trade.lotSize || defaultTradeForm.lotSize),
@@ -579,7 +613,7 @@ const HistorySection = ({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="10" className="empty-cell">No trade history yet. Add a trade or import your history to get started.</td>
+                  <td colSpan="15" className="empty-cell">No trade history yet. Add a trade or import your history to get started.</td>
                 </tr>
               )}
             </tbody>

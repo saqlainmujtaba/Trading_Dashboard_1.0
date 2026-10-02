@@ -100,6 +100,36 @@ test('dashboard data and account-linked writes stay isolated by user', async () 
   assert.equal(crossUserImport.statusCode, 400);
 });
 
+test('trade history preserves lot size, entry, exit, SL, and TP values', async () => {
+  const ownerId = `trade-fields-owner-${Date.now()}`;
+  const account = await invoke(createAccount, ownerId, {
+    name: `Trade fields account ${ownerId}`,
+    status: 'Active',
+  });
+
+  const response = await invoke(createTrade, ownerId, {
+    account: account.body.name,
+    pair: 'EURUSD',
+    buySell: 'Buy',
+    entryPrice: 1.098,
+    exitPrice: 1.105,
+    lotSize: 0.35,
+    sl: 1.095,
+    tp: 1.112,
+    date: '2026-04-10',
+  });
+
+  const dashboard = await invoke(getDashboardData, ownerId);
+  const createdTrade = dashboard.body.trades.find((trade) => trade._id === response.body._id);
+
+  assert.ok(createdTrade);
+  assert.equal(createdTrade.entryPrice, 1.098);
+  assert.equal(createdTrade.exitPrice, 1.105);
+  assert.equal(createdTrade.lotSize, 0.35);
+  assert.equal(createdTrade.sl, 1.095);
+  assert.equal(createdTrade.tp, 1.112);
+});
+
 test('trade imports skip existing account trades and import only new rows', async () => {
   const ownerId = `import-owner-${Date.now()}`;
   const account = await invoke(createAccount, ownerId, {
