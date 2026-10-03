@@ -282,7 +282,12 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
         <SummaryCards stats={stats} formatCurrency={formatCurrency} isLoading={isLoading} loadingSections={loadingSections} />
 
-        <PortfolioSection accounts={accounts} formatCurrency={formatCurrency} isLoading={isLoading || loadingSections.has('accounts')} />
+        <PortfolioSection
+          accounts={accounts}
+          plannedAccounts={plannedAccounts}
+          formatCurrency={formatCurrency}
+          isLoading={isLoading || loadingSections.has('accounts') || loadingSections.has('planned')}
+        />
 
         <AccountSection
           accounts={accounts}
