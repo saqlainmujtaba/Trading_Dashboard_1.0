@@ -29,7 +29,7 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
           type="button"
           className="mobile-menu-btn"
           onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-          aria-label="Toggle navigation menu"
+          aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={isMobileMenuOpen}
         >
           <span />
