@@ -90,6 +90,18 @@ const validateAddress = (address) => {
 
 const dotStuff = (content) => content.replace(/(^|\r\n)\./g, '$1..');
 
+const withSmtpContext = async (stage, action) => {
+  try {
+    return await action();
+  } catch (error) {
+    if (error instanceof Error) {
+      const detail = error.message || error.code || error.name || 'unknown SMTP error';
+      throw new Error(`${stage}: ${detail}`, { cause: error });
+    }
+    throw new Error(`${stage}: ${String(error)}`);
+  }
+};
+
 export const sendOtpEmail = async ({ email, otp, purpose }) => {
   const {
     SMTP_HOST,
@@ -142,14 +154,20 @@ export const sendOtpEmail = async ({ email, otp, purpose }) => {
     ? SMTP_SECURE.toLowerCase() === 'true'
     : port === 465;
   const useStartTls = !secure && SMTP_STARTTLS?.toLowerCase() !== 'false';
-  const client = await connectSmtp(SMTP_HOST, port, secure);
+  const client = await withSmtpContext(
+    `SMTP connection to ${SMTP_HOST}:${port} failed`,
+    () => connectSmtp(SMTP_HOST, port, secure)
+  );
+  let stage = 'SMTP greeting';
   try {
     await client.expectResponse([220]);
+    stage = 'SMTP EHLO';
     const hello = await client.command('EHLO trading-dashboard.local', [250]);
     const supportsStartTls = hello.lines.some((line) => /^250[- ]STARTTLS\b/i.test(line));
 
     if (useStartTls) {
       if (!supportsStartTls) throw new Error('SMTP server does not support the required STARTTLS encryption.');
+      stage = 'SMTP STARTTLS negotiation';
       await client.command('STARTTLS', [220]);
       await client.upgradeToTls(SMTP_HOST);
       await client.command('EHLO trading-dashboard.local', [250]);
@@ -159,17 +177,27 @@ export const sendOtpEmail = async ({ email, otp, purpose }) => {
       if (!secure && !useStartTls) {
         throw new EmailConfigurationError('SMTP authentication requires TLS. Enable STARTTLS or use implicit TLS.');
       }
+      stage = 'SMTP authentication';
       await client.command('AUTH LOGIN', [334]);
       await client.command(Buffer.from(SMTP_USER).toString('base64'), [334]);
       await client.command(Buffer.from(SMTP_PASSWORD).toString('base64'), [235]);
     }
 
+    stage = 'SMTP sender/recipient validation';
     await client.command(`MAIL FROM:<${fromMailbox}>`, [250]);
     await client.command(`RCPT TO:<${toMailbox}>`, [250, 251]);
+    stage = 'SMTP message delivery';
     await client.command('DATA', [354]);
     client.socket.write(`${dotStuff(message)}\r\n.\r\n`);
     await client.expectResponse([250]);
     client.socket.write('QUIT\r\n');
+  } catch (error) {
+    if (error instanceof EmailConfigurationError) throw error;
+    if (error instanceof Error && error.message.startsWith('SMTP ')) throw error;
+    const detail = error instanceof Error
+      ? error.message || error.code || error.name || 'unknown SMTP error'
+      : String(error);
+    throw new Error(`${stage} failed: ${detail}`, { cause: error });
   } finally {
     client.close();
   }

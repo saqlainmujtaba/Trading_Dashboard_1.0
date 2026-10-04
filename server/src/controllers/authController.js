@@ -310,7 +310,7 @@ export const registerUser = async (req, res) => {
       if (error instanceof EmailConfigurationError) {
         return res.status(503).json({ message: error.message });
       }
-      console.error('Verification email delivery failed:', error.message);
+      console.error('Verification email delivery failed:', error);
       return res.status(502).json({ message: 'Could not send the verification email. Please try again later.' });
     }
 
@@ -399,7 +399,7 @@ export const requestPasswordReset = async (req, res) => {
       if (error instanceof EmailConfigurationError) {
         return res.status(503).json({ message: error.message });
       }
-      console.error('Password reset email delivery failed:', error.message);
+      console.error('Password reset email delivery failed:', error);
       return res.status(502).json({ message: 'Could not send the password reset email. Please try again later.' });
     }
 
