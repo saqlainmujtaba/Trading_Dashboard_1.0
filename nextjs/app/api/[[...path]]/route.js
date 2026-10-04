@@ -19,42 +19,50 @@ const cleanExpiredDemoAccounts = async () => {
 };
 
 const handleRequest = async (request) => {
-  const url = new URL(request.url);
+  try {
+    const url = new URL(request.url);
 
-  if (url.pathname !== '/api/health') {
-    if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET must be set in production');
+    if (url.pathname !== '/api/health') {
+      if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET must be set in production');
+      }
+      await connectDB();
+      await cleanExpiredDemoAccounts();
     }
-    await connectDB();
-    await cleanExpiredDemoAccounts();
+
+    const queryEntries = [...url.searchParams.entries()];
+    const queryStringParameters = Object.fromEntries(queryEntries);
+    const multiValueQueryStringParameters = queryEntries.reduce((params, [key, value]) => {
+      params[key] = [...(params[key] || []), value];
+      return params;
+    }, {});
+    const event = {
+      httpMethod: request.method,
+      path: url.pathname,
+      headers: Object.fromEntries(request.headers.entries()),
+      queryStringParameters,
+      multiValueQueryStringParameters,
+      body: request.body ? await request.text() : null,
+      isBase64Encoded: false,
+    };
+
+    const result = await invokeExpress(event, {});
+    const headers = new Headers(result.headers);
+    headers.delete('connection');
+    headers.delete('content-length');
+    headers.delete('transfer-encoding');
+
+    return new Response(
+      request.method === 'HEAD' || result.statusCode === 204 ? null : result.body,
+      { status: result.statusCode, headers },
+    );
+  } catch (error) {
+    console.error('Vercel API request failed:', error.message);
+    const message = error.message.includes('MONGO_URI') || error.message.includes('JWT_SECRET')
+      ? error.message
+      : 'API unavailable. Check the Vercel MongoDB settings and Atlas network access.';
+    return Response.json({ message }, { status: 500 });
   }
-
-  const queryEntries = [...url.searchParams.entries()];
-  const queryStringParameters = Object.fromEntries(queryEntries);
-  const multiValueQueryStringParameters = queryEntries.reduce((params, [key, value]) => {
-    params[key] = [...(params[key] || []), value];
-    return params;
-  }, {});
-  const event = {
-    httpMethod: request.method,
-    path: url.pathname,
-    headers: Object.fromEntries(request.headers.entries()),
-    queryStringParameters,
-    multiValueQueryStringParameters,
-    body: request.body ? await request.text() : null,
-    isBase64Encoded: false,
-  };
-
-  const result = await invokeExpress(event, {});
-  const headers = new Headers(result.headers);
-  headers.delete('connection');
-  headers.delete('content-length');
-  headers.delete('transfer-encoding');
-
-  return new Response(
-    request.method === 'HEAD' || result.statusCode === 204 ? null : result.body,
-    { status: result.statusCode, headers },
-  );
 };
 
 export {

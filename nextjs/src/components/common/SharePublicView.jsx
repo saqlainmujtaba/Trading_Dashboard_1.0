@@ -36,6 +36,7 @@ const SharePublicView = ({ initialShare, token }) => {
         <p className="eyebrow">Shared trading snapshot</p>
         <h1>{share.title}</h1>
         {share.description && <p className="muted">{share.description}</p>}
+        <p className="share-public-owner">Shared by {share.ownerName || 'Trader'}</p>
         {share.snapshot.highlights?.length > 0 && (
           <div className="share-public-highlights">
             {share.snapshot.highlights.map((item) => (

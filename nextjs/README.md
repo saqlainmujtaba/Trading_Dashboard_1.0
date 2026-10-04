@@ -46,7 +46,9 @@ Vercel supplies preview deployment hostnames automatically. The API permits thos
 
 ### Sharing dashboard results
 
-From **Analytics → Share trading**, create a read-only snapshot link or download a PNG image. You can share filtered trade history, one trade, one month of trading, one account, one account's trade history, monthly payouts, or the active account list. Links are public to anyone who has them; manage and revoke your active links in the same panel. A share is a saved snapshot and does not change when dashboard data is edited. Social previews use the share page's Open Graph metadata and generated preview image.
+Use the **Share** buttons in the current accounts, trade history, payouts, and monthly payout summary sections. You can share account lists/details, an individual trade (including entry, exit, lot size, stop loss, and take profit), trade history, payout history, and monthly summaries. Download a PNG or create a public read-only link with an Open Graph preview image. Anyone with the link can view the saved snapshot until you revoke it. The trader's name is shown in the page and preview. The original Vite frontend can create preview links by setting `VITE_SHARE_BASE_URL` to this deployed Next.js site's URL; both apps must use the same MongoDB database.
+
+If signed-in dashboard requests fail, the app now displays the API's configuration error instead of silently showing empty data. Confirm that `MONGO_URI` points to the same Atlas database used by the original app, `JWT_SECRET` matches the value used to issue the session, and Atlas network access permits Vercel.
 
 For a traditional Node.js deployment instead, configure the same values in `server/.env`; `npm run dev` starts both services locally.
 

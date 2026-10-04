@@ -21,7 +21,7 @@ const createResponse = () => ({
 
 const createRequest = (body, userId = 'share-owner') => ({
   body,
-  user: { id: userId },
+  user: { id: userId, name: 'Test Trader' },
   params: {},
 });
 
@@ -44,6 +44,7 @@ test('share links expose a read-only snapshot without owner or token hashes', as
   const { token, share } = createResponseObject.body;
   assert.ok(token);
   assert.equal(share.title, sampleShare.title);
+  assert.equal(share.ownerName, 'Test Trader');
   assert.equal('ownerId' in share, false);
   assert.equal('tokenHash' in share, false);
 

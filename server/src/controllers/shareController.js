@@ -8,6 +8,7 @@ const allowedTypes = new Set([
   'monthly-trading',
   'account',
   'account-trading',
+  'payout-history',
   'active-accounts',
   'monthly-payouts',
 ]);
@@ -19,6 +20,7 @@ const isPlainObject = (value) => value && typeof value === 'object' && !Array.is
 
 const publicShare = (share) => ({
   id: String(share._id || share.id),
+  ownerName: share.ownerName || 'Trader',
   type: share.type,
   title: share.title,
   description: share.description,
@@ -69,6 +71,7 @@ export const createShare = async (req, res) => {
   const tokenHash = hashToken(token);
   const shareData = {
     ownerId: String(req.user.id),
+    ownerName: String(req.user.name || 'Trader').slice(0, 120),
     tokenHash,
     type,
     title: title.trim(),

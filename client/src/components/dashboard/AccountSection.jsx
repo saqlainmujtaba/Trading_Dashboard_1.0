@@ -3,6 +3,7 @@ import FormField from '../common/FormField';
 import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
+import SharePanel from '../common/SharePanel';
 
 const accountSortOptions = [
   { value: 'name.asc', label: 'Account name: A to Z' },
@@ -57,6 +58,8 @@ const AccountSection = ({
   setShowAccountForm,
   confirmDelete,
   isLoading = false,
+  ownerName,
+  trades = [],
 }) => {
   const [sortBy, setSortBy] = useState('name.asc');
   const computedProfit = getProfitAmount(accountForm.balance, accountForm.startingBalance);
@@ -104,6 +107,16 @@ const AccountSection = ({
           <span className="section-tag">Live portfolio</span>
         </div>
       </div>
+
+      {!isLoading && accounts.length > 0 && (
+        <SharePanel
+          accounts={accounts}
+          allTrades={trades}
+          ownerName={ownerName}
+          shareTypes={['active-accounts', 'account', 'account-trading']}
+          defaultShareType="active-accounts"
+        />
+      )}
 
       {showAccountForm && (
         <div className="modal-backdrop" onClick={() => { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); }}>

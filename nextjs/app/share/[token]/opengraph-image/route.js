@@ -26,7 +26,8 @@ export async function GET(request, { params }) {
         <div style={{ display: 'flex', alignItems: 'center', color: '#60a5fa', fontSize: 22, fontWeight: 700 }}>
           PERSONAL TRADING DASHBOARD
         </div>
-        <div style={{ marginTop: 28, fontSize: 42, fontWeight: 700 }}>{share.title.slice(0, 60)}</div>
+        <div style={{ marginTop: 12, color: '#94a3b8', fontSize: 18 }}>Shared by {String(share.ownerName || 'Trader').slice(0, 40)}</div>
+        <div style={{ marginTop: 18, fontSize: 42, fontWeight: 700 }}>{share.title.slice(0, 60)}</div>
         <div style={{ marginTop: 12, color: '#cbd5e1', fontSize: 22 }}>{(share.description || 'Shared trading snapshot').slice(0, 100)}</div>
         <div style={{ display: 'flex', gap: 18, marginTop: 32 }}>
           {highlights.map((item) => (

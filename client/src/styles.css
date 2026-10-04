@@ -430,7 +430,7 @@ body[data-theme='dark'] .status-paused {
 .monthly-payout-item > span:nth-child(2) { text-align: right; }
 .monthly-payout-item > strong { text-align: right; }
 .monthly-payout-list-head { color: var(--muted); font-size: 0.78rem; font-weight: 600; }
-.share-panel { display: grid; gap: 12px; margin: 24px 0; }
+.share-panel { display: grid; gap: 12px; margin: 16px 0; }
 .share-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .share-preview, .share-link-result, .share-management { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
 .share-preview span, .share-message, .share-public-footnote { color: var(--muted); font-size: 0.85rem; }
@@ -444,6 +444,7 @@ body[data-theme='dark'] .status-paused {
 .share-public-header small { color: var(--muted); }
 .share-public-card { display: grid; gap: 16px; padding: clamp(18px, 4vw, 32px); border: 1px solid var(--border); border-radius: 20px; background: var(--panel); box-shadow: var(--shadow); }
 .share-public-card h1, .share-public-card p { margin: 0; }
+.share-public-owner { color: var(--muted); font-size: 0.9rem; font-weight: 600; }
 .share-public-highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .share-public-highlights > div { display: grid; gap: 8px; padding: 16px; background: var(--panel-alt); border: 1px solid var(--border); border-radius: 12px; }
 .share-public-highlights span { color: var(--muted); font-size: 0.85rem; }

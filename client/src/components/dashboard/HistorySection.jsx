@@ -4,6 +4,7 @@ import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import { parseTradeFile } from '../../utils/tradeImport';
+import SharePanel from '../common/SharePanel';
 
 const tradeSortOptions = [
   { value: 'date.desc', label: 'Date: newest first' },
@@ -67,6 +68,7 @@ const HistorySection = ({
   isLoading = false,
   isTradesLoading = false,
   isPayoutsLoading = false,
+  ownerName,
 }) => {
   const importFileRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
@@ -211,6 +213,16 @@ const HistorySection = ({
             <span className="section-tag">Records</span>
           </div>
         </div>
+        {!isLoading && !isTradesLoading && sortedTrades.length > 0 && (
+          <SharePanel
+            accounts={accounts}
+            allTrades={sortedTrades}
+            filteredTrades={sortedTrades}
+            ownerName={ownerName}
+            shareTypes={['trade-history', 'trade', 'monthly-trading', 'account-trading']}
+            defaultShareType="trade-history"
+          />
+        )}
 
         {isImportOpen && (
           <div className="modal-backdrop" onClick={() => setIsImportOpen(false)}>
@@ -688,6 +700,15 @@ const HistorySection = ({
             </button>
             <span className="section-tag">Payments</span>
           </div>
+          {!isLoading && !isPayoutsLoading && sortedPayouts.length > 0 && (
+            <SharePanel
+              accounts={accounts}
+              payouts={sortedPayouts}
+              ownerName={ownerName}
+              shareTypes={['payout-history']}
+              defaultShareType="payout-history"
+            />
+          )}
         </div>
 
         {showPayoutForm && (

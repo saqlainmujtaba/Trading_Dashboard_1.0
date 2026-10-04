@@ -14,7 +14,7 @@ const monthLabel = (month) => month
   })
   : 'Selected month';
 
-const tradeColumns = ['Date', 'Account', 'Instrument', 'Direction', 'Entry', 'Exit', 'Lots', 'P/L'];
+const tradeColumns = ['Date', 'Account', 'Instrument', 'Direction', 'Entry', 'Exit', 'Lots', 'Stop loss', 'Take profit', 'Risk', 'P/L'];
 const tradeRow = (trade) => [
   trade.date || '—',
   trade.account || '—',
@@ -23,6 +23,9 @@ const tradeRow = (trade) => [
   String(trade.entryPrice ?? '—'),
   String(trade.exitPrice ?? '—'),
   String(trade.lotSize ?? '—'),
+  String(trade.sl ?? '—'),
+  String(trade.tp ?? '—'),
+  money(trade.risk),
   money(trade.pnl),
 ];
 
@@ -43,6 +46,9 @@ const drawShareImage = async (share) => {
   context.fillStyle = '#ffffff';
   context.font = '700 42px Segoe UI, sans-serif';
   context.fillText('TRADING DASHBOARD', 104, 112);
+  context.fillStyle = '#94a3b8';
+  context.font = '20px Segoe UI, sans-serif';
+  context.fillText(`Shared by ${String(share.ownerName || 'Trader').slice(0, 40)}`, 104, 146);
   context.font = '700 38px Segoe UI, sans-serif';
   context.fillText(share.title.slice(0, 42), 104, 178);
   context.fillStyle = '#cbd5e1';
@@ -81,10 +87,30 @@ const drawShareImage = async (share) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payoutMonth }) => {
+const SharePanel = ({
+  accounts = [],
+  allTrades = [],
+  filteredTrades = [],
+  payouts = [],
+  monthlyPayouts = [],
+  payoutMonth,
+  ownerName = 'Trader',
+  shareTypes,
+  defaultShareType = 'trade-history',
+}) => {
   const today = new Date();
   const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const [shareType, setShareType] = useState('trade-history');
+  const availableShareTypes = shareTypes || [
+    'trade-history',
+    'trade',
+    'monthly-trading',
+    'account',
+    'account-trading',
+    'monthly-payouts',
+    'payout-history',
+    'active-accounts',
+  ];
+  const [shareType, setShareType] = useState(defaultShareType);
   const [tradeMonth, setTradeMonth] = useState(thisMonth);
   const [selectedTrade, setSelectedTrade] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
@@ -93,6 +119,7 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
   const [shares, setShares] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [message, setMessage] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const activeAccounts = accounts.filter((account) => String(account.status || '').toLowerCase() === 'active');
 
   const content = useMemo(() => {
@@ -102,7 +129,15 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
       return {
         title: `${trade.pair || 'Trade'} ${trade.buySell || ''}`.trim(),
         description: `${trade.date || 'Trade'} · ${trade.account || 'Trading account'}`,
-        snapshot: { columns: tradeColumns, rows: [tradeRow(trade)], highlights: [{ label: 'Trade P/L', value: money(trade.pnl) }] },
+        snapshot: {
+          columns: tradeColumns,
+          rows: [tradeRow(trade)],
+          highlights: [
+            { label: 'Entry', value: String(trade.entryPrice ?? '—') },
+            { label: 'Lots', value: String(trade.lotSize ?? '—') },
+            { label: 'Trade P/L', value: money(trade.pnl) },
+          ],
+        },
       };
     }
 
@@ -204,6 +239,27 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
       };
     }
 
+    if (shareType === 'payout-history') {
+      return {
+        title: 'Payout History',
+        description: `${payouts.length} recorded payouts`,
+        snapshot: {
+          columns: ['Date', 'Account', 'Amount', 'Method', 'Status'],
+          rows: payouts.slice(0, 500).map((payout) => [
+            payout.date || '—',
+            payout.account || '—',
+            money(payout.amount),
+            payout.method || '—',
+            payout.status || '—',
+          ]),
+          highlights: [
+            { label: 'Payouts', value: String(payouts.length) },
+            { label: 'Total', value: money(payouts.reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0)) },
+          ],
+        },
+      };
+    }
+
     const totalPayout = monthlyPayouts.reduce((sum, account) => sum + account.payoutAmount, 0);
     const totalFunded = monthlyPayouts.reduce((sum, account) => sum + account.fundedAmount, 0);
     return {
@@ -224,7 +280,7 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
         ],
       },
     };
-  }, [shareType, allTrades, filteredTrades, accounts, monthlyPayouts, payoutMonth, tradeMonth, selectedTrade, selectedAccount, activeAccounts]);
+  }, [shareType, allTrades, filteredTrades, accounts, payouts, monthlyPayouts, payoutMonth, tradeMonth, selectedTrade, selectedAccount, activeAccounts]);
 
   const loadShares = async () => {
     try {
@@ -288,25 +344,30 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
     ['monthly-trading', 'Single month trading'],
     ['account', 'Single account'],
     ['account-trading', 'Single account trading history'],
+    ['payout-history', 'Payout history'],
     ['monthly-payouts', 'Monthly payout summary'],
     ['active-accounts', 'Active accounts list'],
   ];
 
   return (
-    <section className="analytics-panel share-panel">
+    <section className="share-panel">
       <div className="section-head">
         <div>
           <p className="eyebrow">Share your progress</p>
-          <h2>Share trading</h2>
+          <h2>Share {shareTypes?.length === 1 ? (shareOptions.find(([value]) => value === shareTypes[0])?.[1] || 'trading') : 'trading'}</h2>
         </div>
-        <span className="section-tag">Read-only</span>
+        <button type="button" className="secondary-btn" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
+          {isOpen ? 'Close sharing' : 'Share'}
+        </button>
       </div>
+      {isOpen && (
+        <>
       <p className="muted">Create a public link with a social preview, or download a share image. Anyone with a link can view its saved snapshot until you revoke it. Save the link when it is created; it is shown only once.</p>
       <div className="share-controls">
         <label className="field-group">
           <span>What would you like to share?</span>
           <select value={shareType} onChange={(event) => { setShareType(event.target.value); setCreatedLink(''); setMessage(''); }}>
-            {shareOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {shareOptions.filter(([value]) => availableShareTypes.includes(value)).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         {shareType === 'trade' && (
@@ -346,6 +407,7 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
         <div className="share-preview" aria-live="polite">
           <strong>{content.title}</strong>
           <span>{content.description}</span>
+          <span>Shared by {ownerName || 'Trader'}</span>
           <span>{content.snapshot.rows.length} rows · {content.snapshot.highlights?.map((item) => `${item.label}: ${item.value}`).join(' · ')}</span>
         </div>
       )}
@@ -358,7 +420,7 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
         >
           {isCreating ? 'Creating link...' : 'Create share link'}
         </button>
-        <button type="button" className="secondary-btn" disabled={!content} onClick={() => drawShareImage(content).catch((error) => setMessage(error.message))}>
+        <button type="button" className="secondary-btn" disabled={!content} onClick={() => drawShareImage({ ...content, ownerName }).catch((error) => setMessage(error.message))}>
           Download image
         </button>
       </div>
@@ -389,6 +451,8 @@ const SharePanel = ({ accounts, allTrades, filteredTrades, monthlyPayouts, payou
             </div>
           ))}
         </div>
+      )}
+        </>
       )}
     </section>
   );

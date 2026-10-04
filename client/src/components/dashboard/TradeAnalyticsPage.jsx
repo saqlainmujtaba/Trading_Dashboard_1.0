@@ -452,10 +452,11 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
 
         <SharePanel
           accounts={accounts}
-          allTrades={allTrades}
-          filteredTrades={trades}
           monthlyPayouts={monthlyPayoutsByActiveAccount}
           payoutMonth={payoutMonth}
+          ownerName={user?.name}
+          shareTypes={['monthly-payouts']}
+          defaultShareType="monthly-payouts"
         />
 
         <section className="analytics-panel filter-panel" aria-label="Trade filters">

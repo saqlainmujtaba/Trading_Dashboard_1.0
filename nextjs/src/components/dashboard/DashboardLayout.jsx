@@ -89,7 +89,7 @@ const defaultPayoutForm = {
   status: 'Pending',
 };
 
-const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, isLoading = false, loadingSections = new Set() }) => {
+const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onToggleTheme, isLoading = false, loadingSections = new Set(), errorMessage = '' }) => {
   const location = useLocation();
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
@@ -357,6 +357,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
               : <span className="chip success">{stats.activeAccounts} Active</span>}
           </div>
         </header>
+        {errorMessage && <div className="error-box" role="alert">{errorMessage}</div>}
 
         <SummaryCards
           stats={{ ...stats, monthlyReturn: monthlyReturnTotal, projectedActiveFunding }}
@@ -387,6 +388,8 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           setShowAccountForm={setShowAccountForm}
           confirmDelete={confirmDelete}
           isLoading={isLoading || loadingSections.has('accounts')}
+          ownerName={user?.name}
+          trades={trades}
         />
 
         <section id="monthly-return" className="section-block monthly-return-section">
@@ -494,6 +497,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           isLoading={isLoading}
           isTradesLoading={loadingSections.has('trades')}
           isPayoutsLoading={loadingSections.has('payouts')}
+          ownerName={user?.name}
         />
 
         {deleteConfirm && (

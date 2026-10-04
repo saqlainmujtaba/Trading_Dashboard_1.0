@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const shareSchema = new mongoose.Schema(
   {
     ownerId: { type: String, required: true, index: true },
+    ownerName: { type: String, default: 'Trader', maxlength: 120 },
     tokenHash: { type: String, required: true, unique: true },
     type: { type: String, required: true },
     title: { type: String, required: true, maxlength: 120 },

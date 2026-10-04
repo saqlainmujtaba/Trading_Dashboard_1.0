@@ -44,6 +44,7 @@ const App = () => {
   });
 
   const [dashboardData, setDashboardData] = useState(createEmptyDashboardData);
+  const [dashboardError, setDashboardError] = useState('');
   const [isReady, setIsReady] = useState(() => !localStorage.getItem('token'));
   const [isDashboardLoading, setIsDashboardLoading] = useState(() => Boolean(localStorage.getItem('token')));
   const [loadingSections, setLoadingSections] = useState(() => (
@@ -128,10 +129,12 @@ const App = () => {
     if (!sections) setIsDashboardLoading(true);
 
     try {
+      setDashboardError('');
       const response = await api.get('/dashboard');
       setDashboardData(response.data);
     } catch (error) {
       console.error('Failed to load dashboard data', error);
+      setDashboardError(error.response?.data?.message || 'Could not load dashboard data. Check the API and database configuration.');
     } finally {
       requestedSections.forEach((section) => {
         loadingSectionCounts.current[section] -= 1;
@@ -162,12 +165,16 @@ const App = () => {
         localStorage.setItem('user', JSON.stringify(response.data));
         await loadDashboardData();
       } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
         setIsDashboardLoading(false);
         loadingSectionCounts.current = {};
         setLoadingSections(new Set());
-        setUser(null);
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        } else {
+          setDashboardError(error.response?.data?.message || 'Could not connect to the API. Check the API and database configuration.');
+        }
       } finally {
         setIsReady(true);
       }
@@ -203,6 +210,7 @@ const App = () => {
         onToggleTheme={toggleTheme}
         isLoading
         loadingSections={loadingSections}
+        errorMessage={dashboardError}
       />
     );
   }
@@ -217,6 +225,7 @@ const App = () => {
       onLogout={handleLogout}
       isLoading={isDashboardLoading}
       loadingSections={loadingSections}
+      errorMessage={dashboardError}
     />
   ) : (
     <Navigate to="/" replace />
