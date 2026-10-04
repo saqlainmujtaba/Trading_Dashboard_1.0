@@ -422,8 +422,8 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
               </label>
               <div className="calculator-inline-controls">
                 <label className="field-group">
-                  <span>{selectedAccount ? 'Selected account balance (USD)' : 'Account balance'}</span>
-                  <input type="number" min="0" step="any" value={balance} readOnly={Boolean(selectedAccount)} onChange={updateValue(setBalance)} />
+                  <span>{selectedAccount ? 'Balance for this calculation (USD)' : 'Account balance'}</span>
+                  <input type="number" min="0" step="any" value={balance} onChange={updateValue(setBalance)} />
                 </label>
                 <label className="field-group">
                   <span>Currency</span>
