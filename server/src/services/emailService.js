@@ -104,6 +104,8 @@ const withSmtpContext = async (stage, action) => {
 
 export const sendOtpEmail = async ({ email, otp, purpose }) => {
   const {
+    RESEND_API_KEY,
+    RESEND_FROM,
     SMTP_HOST,
     SMTP_PORT = '587',
     SMTP_SECURE,
@@ -111,10 +113,37 @@ export const sendOtpEmail = async ({ email, otp, purpose }) => {
     SMTP_USER,
     SMTP_PASSWORD,
   } = process.env;
-  const from = process.env.SMTP_FROM || SMTP_USER;
+  const from = RESEND_FROM || process.env.SMTP_FROM || SMTP_USER;
+  const isVerification = purpose === 'verify-email';
+  const action = isVerification ? 'verify your email address' : 'reset your password';
+  const subject = isVerification ? 'Verify your email address' : 'Reset your password';
+  const text = `Use this one-time code to ${action}: ${otp}\n\nThis code expires in 10 minutes. If you did not request it, you can ignore this email.`;
+  const html = `<p>Use this one-time code to ${action}:</p><p style="font-size:28px;font-weight:bold;letter-spacing:8px">${otp}</p><p>This code expires in 10 minutes. If you did not request it, you can ignore this email.</p>`;
+
+  if (RESEND_API_KEY) {
+    if (!from) {
+      throw new EmailConfigurationError('Resend email delivery needs RESEND_FROM set to a verified sender address.');
+    }
+    validateAddress(from);
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: [email], subject, text, html }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Resend API returned HTTP ${response.status}: ${detail || response.statusText}`);
+    }
+    return;
+  }
+
   const port = Number(SMTP_PORT);
   if (!SMTP_HOST || !from || !Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new EmailConfigurationError('Email delivery is not configured. Set SMTP_HOST, SMTP_PORT, and SMTP_FROM (or SMTP_USER).');
+    throw new EmailConfigurationError('Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM, or configure SMTP_HOST, SMTP_PORT, and SMTP_FROM.');
   }
   if (Boolean(SMTP_USER) !== Boolean(SMTP_PASSWORD)) {
     throw new EmailConfigurationError('SMTP_USER and SMTP_PASSWORD must both be set when SMTP authentication is used.');
@@ -122,9 +151,6 @@ export const sendOtpEmail = async ({ email, otp, purpose }) => {
 
   const fromMailbox = validateAddress(from);
   const toMailbox = validateAddress(email);
-  const isVerification = purpose === 'verify-email';
-  const action = isVerification ? 'verify your email address' : 'reset your password';
-  const subject = isVerification ? 'Verify your email address' : 'Reset your password';
   const boundary = `otp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const message = [
     `From: ${from}`,
@@ -137,15 +163,13 @@ export const sendOtpEmail = async ({ email, otp, purpose }) => {
     'Content-Type: text/plain; charset=utf-8',
     'Content-Transfer-Encoding: 7bit',
     '',
-    `Use this one-time code to ${action}: ${otp}`,
-    '',
-    'This code expires in 10 minutes. If you did not request it, you can ignore this email.',
+    text.split('\n').join('\r\n'),
     '',
     `--${boundary}`,
     'Content-Type: text/html; charset=utf-8',
     'Content-Transfer-Encoding: 7bit',
     '',
-    `<p>Use this one-time code to ${action}:</p><p style="font-size:28px;font-weight:bold;letter-spacing:8px">${otp}</p><p>This code expires in 10 minutes. If you did not request it, you can ignore this email.</p>`,
+    html,
     '',
     `--${boundary}--`,
   ].join('\r\n');
