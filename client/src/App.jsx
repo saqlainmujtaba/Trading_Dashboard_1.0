@@ -7,6 +7,7 @@ import ProfilePage from './components/dashboard/ProfilePage';
 import TourGuide from './components/common/TourGuide';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
+const CalculatorPage = lazy(() => import('./components/dashboard/CalculatorPage'));
 const dashboardSections = ['accounts', 'planned', 'trades', 'payouts'];
 
 const getInitialTheme = () => {
@@ -250,6 +251,34 @@ const App = () => {
               <TradeAnalyticsPage
                 user={user}
                 dashboardData={dashboardData}
+                onLogout={handleLogout}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+              />
+            </Suspense>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/calculator"
+        element={
+          user ? (
+            <Suspense fallback={(
+              <DashboardLayout
+                user={user}
+                dashboardData={dashboardData}
+                onRefresh={loadDashboardData}
+                onLogout={handleLogout}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                isLoading
+                loadingSections={loadingSections}
+              />
+            )}>
+              <CalculatorPage
+                user={user}
                 onLogout={handleLogout}
                 theme={theme}
                 onToggleTheme={toggleTheme}

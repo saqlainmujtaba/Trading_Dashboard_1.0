@@ -105,6 +105,7 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
         </div>
         <div className="nav-page-links" aria-label="Separate pages">
           <Link className={isPageActive('/analytics') ? 'nav-link-active' : ''} to="/analytics" onClick={handleNavClick} aria-current={isPageActive('/analytics') ? 'page' : undefined}>Analytics</Link>
+          <Link className={isPageActive('/calculator') ? 'nav-link-active' : ''} to="/calculator" onClick={handleNavClick} aria-current={isPageActive('/calculator') ? 'page' : undefined}>Calculator</Link>
           <Link className={isPageActive('/profile') ? 'nav-link-active' : ''} to="/profile" onClick={handleNavClick} aria-current={isPageActive('/profile') ? 'page' : undefined}>Profile</Link>
         </div>
 

@@ -430,6 +430,47 @@ body[data-theme='dark'] .status-paused {
 .monthly-payout-item > span:nth-child(2) { text-align: right; }
 .monthly-payout-item > strong { text-align: right; }
 .monthly-payout-list-head { color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.calculator-market-panel { margin: 24px 0; }
+.calculator-market-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) minmax(190px, auto);
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.calculator-live-quote {
+  display: grid;
+  gap: 4px;
+  min-height: 64px;
+  padding: 10px 14px;
+  background: var(--panel-alt);
+  border-radius: 12px;
+}
+.calculator-live-quote span,
+.calculator-live-quote small { color: var(--muted); font-size: 0.76rem; }
+.calculator-live-quote strong { font-size: 1.1rem; }
+.calculator-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px;
+}
+.calculator-card { padding: 20px; }
+.calculator-card h2 { margin: 6px 0 10px; }
+.calculator-card > .muted { min-height: 36px; line-height: 1.5; }
+.calculator-fields { display: grid; gap: 14px; margin-top: 20px; }
+.calculator-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 14px;
+  background: var(--panel-alt);
+  border-radius: 12px;
+}
+.calculator-result > div { display: flex; flex-direction: column; gap: 5px; }
+.calculator-result span { color: var(--muted); font-size: 0.78rem; }
+.calculator-result strong { font-size: 1.05rem; overflow-wrap: anywhere; }
+.calculator-card > .calculator-result + .muted { margin-top: 12px; }
 .section-block { margin-top: 26px; width: 100%; max-width: 100%; }
 .section-head {
   display: flex;
@@ -906,6 +947,9 @@ tbody tr:hover { background: var(--primary-soft); }
   .analytics-layout {
     grid-template-columns: 1fr;
   }
+  .calculator-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calculator-market-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calculator-live-quote { grid-column: 1 / -1; }
   .analytics-filter-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -939,6 +983,9 @@ tbody tr:hover { background: var(--primary-soft); }
   .analytics-summary-grid {
     grid-template-columns: 1fr;
   }
+  .calculator-grid,
+  .calculator-market-controls { grid-template-columns: 1fr; }
+  .calculator-live-quote { grid-column: auto; }
   .analytics-panel {
     padding: 14px;
   }

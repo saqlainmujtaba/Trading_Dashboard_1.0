@@ -15,6 +15,8 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - Payout management tied to existing accounts
 - Portfolio overview by prop firm
 - Trade analytics with cumulative P/L and account performance charts
+- Trading calculators for estimated margin, risk-based lot sizing, and trade profit/loss
+- Searchable Forex, gold, and crypto symbols with automatic public quote and currency conversion lookup
 - Trade filters for search, date range, account, pair, direction, and result
 - CSV and PDF exports for the currently filtered trade report
 - Trade-history imports from CSV and modern `.xlsx` exports, with preview and account mapping
@@ -157,6 +159,16 @@ Displays:
 - searchable, filterable trade history
 - CSV and PDF report exports
 - CSV and `.xlsx` history import with column matching for common MT5, cTrader, and MatchTrader exports
+
+### Calculator Page
+Includes:
+- Margin estimates based on account balance, leverage, instrument, and lots
+- Risk-based lot sizing from balance, risk percentage, and stop distance
+- Profit/loss estimates from direction, entry, exit, and position size
+- Searchable Forex pairs, XAUUSD, and selected USD-priced crypto symbols
+- Automatic quote and account-currency conversion using no-key public APIs
+
+Market rates can be delayed or unavailable. Forex calculations use 100,000 base units per lot, XAUUSD uses 100 troy ounces per lot, and crypto uses one coin per lot. These are estimates only; broker/exchange contract specifications may differ.
 
 ### Backend API
 The server exposes endpoints for:
