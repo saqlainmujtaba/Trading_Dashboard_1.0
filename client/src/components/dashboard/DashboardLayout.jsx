@@ -386,7 +386,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           isLoading={isLoading || loadingSections.has('accounts')}
         />
 
-        <section className="section-block monthly-return-section">
+        <section id="monthly-return" className="section-block monthly-return-section">
           <div className="section-head">
             <div>
               <p className="eyebrow">Projection</p>

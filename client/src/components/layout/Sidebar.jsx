@@ -28,7 +28,7 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   useEffect(() => {
     if (!isHome) return undefined;
 
-    const sections = ['overview', 'accounts', 'planned', 'portfolio', 'history', 'payouts'];
+    const sections = ['overview', 'portfolio', 'accounts', 'monthly-return', 'planned', 'history', 'payouts'];
     const updateActiveSection = () => {
       const activationLine = Math.min(180, window.innerHeight * 0.3);
       let currentSection = sections[0];
@@ -94,9 +94,10 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
           {areHomeSectionsOpen && (
             <div id="home-section-links" className="nav-section-links" aria-label="Home sections">
               <Link className={isSectionActive('overview') ? 'nav-link-active' : ''} to="/#overview" onClick={handleNavClick} aria-current={isSectionActive('overview') ? 'location' : undefined}>Overview</Link>
-              <Link className={isSectionActive('accounts') ? 'nav-link-active' : ''} to="/#accounts" onClick={handleNavClick} aria-current={isSectionActive('accounts') ? 'location' : undefined}>Accounts</Link>
-              <Link className={isSectionActive('planned') ? 'nav-link-active' : ''} to="/#planned" onClick={handleNavClick} aria-current={isSectionActive('planned') ? 'location' : undefined}>Planned</Link>
               <Link className={isSectionActive('portfolio') ? 'nav-link-active' : ''} to="/#portfolio" onClick={handleNavClick} aria-current={isSectionActive('portfolio') ? 'location' : undefined}>Portfolio</Link>
+              <Link className={isSectionActive('accounts') ? 'nav-link-active' : ''} to="/#accounts" onClick={handleNavClick} aria-current={isSectionActive('accounts') ? 'location' : undefined}>Accounts</Link>
+              <Link className={isSectionActive('monthly-return') ? 'nav-link-active' : ''} to="/#monthly-return" onClick={handleNavClick} aria-current={isSectionActive('monthly-return') ? 'location' : undefined}>Monthly Return</Link>
+              <Link className={isSectionActive('planned') ? 'nav-link-active' : ''} to="/#planned" onClick={handleNavClick} aria-current={isSectionActive('planned') ? 'location' : undefined}>Planned</Link>
               <Link className={isSectionActive('history') ? 'nav-link-active' : ''} to="/#history" onClick={handleNavClick} aria-current={isSectionActive('history') ? 'location' : undefined}>History</Link>
               <Link className={isSectionActive('payouts') ? 'nav-link-active' : ''} to="/#payouts" onClick={handleNavClick} aria-current={isSectionActive('payouts') ? 'location' : undefined}>Payouts</Link>
             </div>
