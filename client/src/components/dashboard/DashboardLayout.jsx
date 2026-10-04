@@ -303,6 +303,37 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           </div>
         </header>
 
+        <SummaryCards
+          stats={{ ...stats, monthlyReturn: monthlyReturnTotal, projectedActiveFunding }}
+          formatCurrency={formatCurrency}
+          isLoading={isLoading}
+          loadingSections={loadingSections}
+        />
+
+        <PortfolioSection
+          accounts={accounts}
+          plannedAccounts={plannedAccounts}
+          formatCurrency={formatCurrency}
+          isLoading={isLoading || loadingSections.has('accounts') || loadingSections.has('planned')}
+        />
+
+        <AccountSection
+          accounts={accounts}
+          accountForm={accountForm}
+          setAccountForm={setAccountForm}
+          editingAccountId={editingAccountId}
+          setEditingAccountId={setEditingAccountId}
+          defaultAccountForm={defaultAccountForm}
+          handleAccountSubmit={handleAccountSubmit}
+          formatCurrency={formatCurrency}
+          deleteAccount={deleteAccount}
+          updateAccountField={updateAccountField}
+          showAccountForm={showAccountForm}
+          setShowAccountForm={setShowAccountForm}
+          confirmDelete={confirmDelete}
+          isLoading={isLoading || loadingSections.has('accounts')}
+        />
+
         <section className="section-block monthly-return-section">
           <div className="section-head">
             <div>
@@ -346,37 +377,6 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
             )}
           </div>
         </section>
-
-        <SummaryCards
-          stats={{ ...stats, monthlyReturn: monthlyReturnTotal, projectedActiveFunding }}
-          formatCurrency={formatCurrency}
-          isLoading={isLoading}
-          loadingSections={loadingSections}
-        />
-
-        <PortfolioSection
-          accounts={accounts}
-          plannedAccounts={plannedAccounts}
-          formatCurrency={formatCurrency}
-          isLoading={isLoading || loadingSections.has('accounts') || loadingSections.has('planned')}
-        />
-
-        <AccountSection
-          accounts={accounts}
-          accountForm={accountForm}
-          setAccountForm={setAccountForm}
-          editingAccountId={editingAccountId}
-          setEditingAccountId={setEditingAccountId}
-          defaultAccountForm={defaultAccountForm}
-          handleAccountSubmit={handleAccountSubmit}
-          formatCurrency={formatCurrency}
-          deleteAccount={deleteAccount}
-          updateAccountField={updateAccountField}
-          showAccountForm={showAccountForm}
-          setShowAccountForm={setShowAccountForm}
-          confirmDelete={confirmDelete}
-          isLoading={isLoading || loadingSections.has('accounts')}
-        />
 
         <PlannedSection
           plannedAccounts={plannedAccounts}
