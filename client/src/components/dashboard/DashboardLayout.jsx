@@ -179,12 +179,11 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
         name: account.name,
         fundedAmount,
         monthlyReturn,
-        projectedFunding: fundedAmount + monthlyReturn,
       };
     });
   }, [activeAccounts, monthlyReturnPercent]);
   const monthlyReturnTotal = monthlyReturnByAccount.reduce((sum, account) => sum + account.monthlyReturn, 0);
-  const projectedActiveFunding = monthlyReturnByAccount.reduce((sum, account) => sum + account.projectedFunding, 0);
+  const projectedActiveFunding = monthlyReturnByAccount.reduce((sum, account) => sum + account.fundedAmount, 0);
 
   const saveMonthlyReturn = async () => {
     const percentage = Number(monthlyReturnPercent);
@@ -429,7 +428,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
               {monthlyReturnMessage && <span className="success-text" role="status">{monthlyReturnMessage}</span>}
               {monthlyReturnError && <span className="error-text" role="alert">{monthlyReturnError}</span>}
             </div>
-            <p className="muted">Calculated separately from each active account's funded amount. This is a projection and does not change saved balances.</p>
+            <p className="muted">Estimated return is shown separately as a payout and is not added to active funded capital.</p>
             {isLoading || loadingSections.has('accounts') ? (
               <Skeleton className="skeleton-value" />
             ) : monthlyReturnByAccount.length > 0 ? (
@@ -438,9 +437,9 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
                   <div className="monthly-return-item" key={account.id}>
                     <span>{account.name}</span>
                     <span>
-                      {formatCurrency(account.fundedAmount)} + {formatCurrency(account.monthlyReturn)}
-                      {' = '}
-                      <strong>{formatCurrency(account.projectedFunding)}</strong>
+                      Funded: <strong>{formatCurrency(account.fundedAmount)}</strong>
+                      {' · Est. payout: '}
+                      <strong>{formatCurrency(account.monthlyReturn)}</strong>
                     </span>
                   </div>
                 ))}
