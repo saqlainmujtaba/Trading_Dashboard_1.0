@@ -53,6 +53,13 @@ const instruments = [
   ...cryptoInstruments,
 ];
 
+const majorForexSymbols = new Set(['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD', 'AUDUSD', 'NZDUSD']);
+const majorForexInstruments = instruments.filter((item) => item.kind === 'forex' && majorForexSymbols.has(item.symbol));
+const otherForexInstruments = instruments.filter((item) => item.kind === 'forex' && !majorForexSymbols.has(item.symbol));
+const commodityInstruments = instruments.filter((item) => item.assetClass === 'commodities');
+const indexMarketInstruments = instruments.filter((item) => item.assetClass === 'indices');
+const digitalAssetInstruments = instruments.filter((item) => item.assetClass === 'crypto');
+
 const accountCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -156,7 +163,6 @@ const formatNumber = (value, digits = 2) => new Intl.NumberFormat('en-US', {
 
 const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout }) => {
   const [instrumentSymbol, setInstrumentSymbol] = useState('EURUSD');
-  const [instrumentSearch, setInstrumentSearch] = useState('EURUSD');
   const [accountCurrency, setAccountCurrency] = useState('USD');
   const [quote, setQuote] = useState(null);
   const [baseToAccountRate, setBaseToAccountRate] = useState(null);
@@ -193,13 +199,6 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
     ? parsePositiveNumber(selectedAccount[leverageField])
     : 0;
   const activeLeverage = selectedAccount ? selectedAccountLeverage : parsePositiveNumber(leverage);
-
-  useEffect(() => {
-    const selected = instruments.find((item) => item.symbol === instrumentSearch.trim().toUpperCase());
-    if (selected) {
-      setInstrumentSymbol(selected.symbol);
-    }
-  }, [instrumentSearch]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -328,8 +327,7 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
   };
 
   const selectInstrument = (event) => {
-    const value = event.target.value.toUpperCase();
-    setInstrumentSearch(value);
+    const value = event.target.value;
     setHasCalculated(false);
     const selected = instruments.find((item) => item.symbol === value);
     if (selected) {
@@ -395,7 +393,7 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
         ? `${formatNumber(recommendedLotsMargin)} ${accountCurrency} margin · ${formatNumber(recommendedLotsMarginPercent)}% of ${selectedAccount ? `${selectedAccount.name}’s` : 'the'} balance`
         : 'Set leverage to estimate required margin';
       return {
-        title: `${formatNumber(recommendedLots, 4)} lots`,
+        title: `${formatNumber(recommendedLots, 2)} lots`,
         detail: `${formatNumber(currentRiskAmount)} ${accountCurrency} risk · ${marginEstimate}`,
       };
     }
@@ -466,11 +464,23 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
               </label>
               <label className="field-group">
                 <span>Instrument</span>
-                <input list="calculator-instruments" value={instrumentSearch} onChange={selectInstrument}
-                  placeholder="Search or select instrument" aria-label="Search or select a market instrument" />
-                <datalist id="calculator-instruments">
-                  {instruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.name}</option>)}
-                </datalist>
+                <select value={instrumentSymbol} onChange={selectInstrument} aria-label="Select a market instrument">
+                  <optgroup label="Major Forex pairs">
+                    {majorForexInstruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.symbol} · {item.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Other Forex pairs">
+                    {otherForexInstruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.symbol} · {item.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Commodities">
+                    {commodityInstruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.symbol} · {item.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Indices">
+                    {indexMarketInstruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.symbol} · {item.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Crypto">
+                    {digitalAssetInstruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.symbol} · {item.name}</option>)}
+                  </optgroup>
+                </select>
               </label>
               <div className="calculator-inline-controls">
                 <label className="field-group">
