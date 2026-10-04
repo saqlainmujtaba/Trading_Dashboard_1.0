@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [areHomeSectionsOpen, setAreHomeSectionsOpen] = useState(false);
+  const [activeHomeSection, setActiveHomeSection] = useState('overview');
   const location = useLocation();
   let profileName = '';
 
@@ -17,12 +18,40 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
 
   const handleNavClick = () => setIsMobileMenuOpen(false);
   const isHome = location.pathname === '/' || location.pathname === '/dashboard';
-  const isSectionActive = (section) => isHome && location.hash === `#${section}`;
+  const isSectionActive = (section) => isHome && activeHomeSection === section;
   const isPageActive = (path) => location.pathname === path;
 
   useEffect(() => {
     if (!isHome) setAreHomeSectionsOpen(false);
   }, [isHome]);
+
+  useEffect(() => {
+    if (!isHome) return undefined;
+
+    const sections = ['overview', 'accounts', 'planned', 'portfolio', 'history', 'payouts'];
+    const updateActiveSection = () => {
+      const activationLine = Math.min(180, window.innerHeight * 0.3);
+      let currentSection = sections[0];
+
+      sections.forEach((sectionId) => {
+        const section = document.getElementById(sectionId);
+        if (section && section.getBoundingClientRect().top <= activationLine) {
+          currentSection = sectionId;
+        }
+      });
+
+      setActiveHomeSection(currentSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener('scroll', updateActiveSection, { passive: true });
+    window.addEventListener('resize', updateActiveSection);
+
+    return () => {
+      window.removeEventListener('scroll', updateActiveSection);
+      window.removeEventListener('resize', updateActiveSection);
+    };
+  }, [isHome, location.pathname]);
 
   return (
     <aside className="sidebar">
