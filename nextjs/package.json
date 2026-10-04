@@ -10,7 +10,7 @@
     "dev": "concurrently -k \"next dev\" \"npm run dev --workspace server\"",
     "build": "next build",
     "start": "next start",
-    "test": "node --test src/utils/tradeImport.test.js"
+    "test": "node --test src/utils/tradeImport.test.js src/utils/monthlyPayoutSummary.test.js"
   },
   "dependencies": {
     "axios": "^1.7.7",

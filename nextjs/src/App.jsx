@@ -5,6 +5,7 @@ import AuthScreen from './components/auth/AuthScreen';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import ProfilePage from './components/dashboard/ProfilePage';
 import TourGuide from './components/common/TourGuide';
+import SharePublicRoute from './components/common/SharePublicRoute';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
 const CalculatorPage = lazy(() => import('./components/dashboard/CalculatorPage'));
@@ -224,6 +225,7 @@ const App = () => {
   return (
     <>
       <Routes>
+      <Route path="/share/:token" element={<SharePublicRoute />} />
       <Route
         path="/"
         element={user ? dashboardPage : <AuthScreen onAuthSuccess={handleAuthSuccess} />}

@@ -44,6 +44,10 @@ The frontend uses the local API at `http://localhost:5000/api` in development an
 
 Vercel supplies preview deployment hostnames automatically. The API permits those Vercel hostnames and the origins listed in `CLIENT_URL`. Do not commit `.env`, `.env.local`, or production secrets.
 
+### Sharing dashboard results
+
+From **Analytics → Share trading**, create a read-only snapshot link or download a PNG image. You can share filtered trade history, one trade, one month of trading, one account, one account's trade history, monthly payouts, or the active account list. Links are public to anyone who has them; manage and revoke your active links in the same panel. A share is a saved snapshot and does not change when dashboard data is edited. Social previews use the share page's Open Graph metadata and generated preview image.
+
 For a traditional Node.js deployment instead, configure the same values in `server/.env`; `npm run dev` starts both services locally.
 
 ## Checks

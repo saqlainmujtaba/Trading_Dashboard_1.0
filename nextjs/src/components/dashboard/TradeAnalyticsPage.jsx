@@ -4,6 +4,8 @@ import AnalyticsChart, { ChartTypeSelect } from './AnalyticsChart';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import Sidebar from '../layout/Sidebar';
+import { buildMonthlyPayoutSummary } from '../../utils/monthlyPayoutSummary';
+import SharePanel from '../common/SharePanel';
 
 const analyticsTradeSortOptions = [
   { value: 'date.desc', label: 'Date: newest first' },
@@ -131,27 +133,10 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
   const payouts = dashboardData?.payouts || [];
   const plannedAccounts = dashboardData?.plannedAccounts || [];
   const allTrades = dashboardData?.trades || [];
-  const monthlyPayoutsByActiveAccount = useMemo(() => {
-    const activeAccounts = accounts.filter((account) => account.status === 'Active');
-    const totals = new Map(activeAccounts.map((account) => [account.name, {
-      name: account.name,
-      fundedAmount: Number(account.fundedAmount) || 0,
-      payoutAmount: 0,
-    }]));
-
-    payouts.forEach((payout) => {
-      if (payout.date?.slice(0, 7) !== payoutMonth) return;
-      const accountTotal = totals.get(payout.account);
-      if (accountTotal) accountTotal.payoutAmount += Number(payout.amount) || 0;
-    });
-
-    return [...totals.values()].map((account) => ({
-      ...account,
-      returnPercent: account.fundedAmount > 0
-        ? account.payoutAmount / account.fundedAmount * 100
-        : null,
-    }));
-  }, [accounts, payouts, payoutMonth]);
+  const monthlyPayoutsByActiveAccount = useMemo(
+    () => buildMonthlyPayoutSummary({ accounts, payouts, month: payoutMonth, currentMonth }),
+    [accounts, payouts, payoutMonth, currentMonth],
+  );
   const monthlyPayoutTotal = monthlyPayoutsByActiveAccount.reduce((sum, account) => sum + account.payoutAmount, 0);
   const monthlyFundedTotal = monthlyPayoutsByActiveAccount.reduce((sum, account) => sum + account.fundedAmount, 0);
   const monthlyPayoutReturn = monthlyFundedTotal > 0 ? monthlyPayoutTotal / monthlyFundedTotal * 100 : null;
@@ -444,7 +429,7 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             <div><span>Total recorded payouts</span><strong>{formatCurrency(monthlyPayoutTotal)}</strong></div>
             <div><span>Return on active funded amount</span><strong>{monthlyPayoutReturn === null ? '—' : `${monthlyPayoutReturn.toFixed(2)}%`}</strong></div>
           </div>
-          <p className="muted">Payout return is calculated as recorded payouts in the selected month divided by each currently active account's funded amount.</p>
+          <p className="muted">Only currently active accounts opened by the end of the selected month are listed. Historical account status is not available.</p>
           {monthlyPayoutsByActiveAccount.length ? (
             <div className="monthly-payout-list">
               <div className="monthly-payout-item monthly-payout-list-head" aria-hidden="true">
@@ -461,9 +446,17 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
               ))}
             </div>
           ) : (
-            <p className="empty-state">No active accounts to summarize for this month.</p>
+            <p className="empty-state">No active accounts existed in {new Date(`${payoutMonth}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
           )}
         </section>
+
+        <SharePanel
+          accounts={accounts}
+          allTrades={allTrades}
+          filteredTrades={trades}
+          monthlyPayouts={monthlyPayoutsByActiveAccount}
+          payoutMonth={payoutMonth}
+        />
 
         <section className="analytics-panel filter-panel" aria-label="Trade filters">
           <div className="section-head">

@@ -401,7 +401,7 @@ body[data-theme='dark'] .status-paused {
 }
 .monthly-return-item > span:last-child { text-align: right; }
 .monthly-payout-month { width: min(100%, 220px); }
-.monthly-payout-month-controls { display: flex; align-items: end; gap: 8px; }
+.monthly-payout-month-controls { display: flex; align-items: flex-end; gap: 8px; }
 .monthly-payout-month-controls .secondary-btn { white-space: nowrap; }
 .monthly-payout-totals {
   display: grid;
@@ -430,6 +430,26 @@ body[data-theme='dark'] .status-paused {
 .monthly-payout-item > span:nth-child(2) { text-align: right; }
 .monthly-payout-item > strong { text-align: right; }
 .monthly-payout-list-head { color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.share-panel { display: grid; gap: 12px; margin: 24px 0; }
+.share-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.share-preview, .share-link-result, .share-management { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
+.share-preview span, .share-message, .share-public-footnote { color: var(--muted); font-size: 0.85rem; }
+.share-link-result input { min-width: 0; }
+.share-management h3 { margin: 0; font-size: 1rem; }
+.share-management-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
+.share-public-page { width: min(1100px, calc(100% - 32px)); margin: 32px auto; }
+.share-public-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.share-public-header .brand-home { display: flex; align-items: center; gap: 10px; }
+.share-public-header .brand-home > span:last-child { display: grid; }
+.share-public-header small { color: var(--muted); }
+.share-public-card { display: grid; gap: 16px; padding: clamp(18px, 4vw, 32px); border: 1px solid var(--border); border-radius: 20px; background: var(--panel); box-shadow: var(--shadow); }
+.share-public-card h1, .share-public-card p { margin: 0; }
+.share-public-highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.share-public-highlights > div { display: grid; gap: 8px; padding: 16px; background: var(--panel-alt); border: 1px solid var(--border); border-radius: 12px; }
+.share-public-highlights span { color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 600px) {
+  .share-management-row { align-items: flex-start; flex-direction: column; }
+}
 .calculator-market-panel { margin: 24px 0; }
 .calculator-market-controls {
   display: grid;

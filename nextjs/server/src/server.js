@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import shareRoutes from './routes/shareRoutes.js';
 import { purgeExpiredDemoAccounts } from './controllers/authController.js';
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/shares', shareRoutes);
 
 export { app };
 

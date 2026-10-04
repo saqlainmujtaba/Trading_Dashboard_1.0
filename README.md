@@ -19,6 +19,7 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - Searchable Forex, gold, and crypto symbols with automatic public quote and currency conversion lookup
 - Trade filters for search, date range, account, pair, direction, and result
 - CSV and PDF exports for the currently filtered trade report
+- Shareable read-only snapshots and preview cards for trades, account performance, monthly trading, payouts, and active accounts
 - Trade-history imports from CSV and modern `.xlsx` exports, with preview and account mapping
 - Persistent light/dark theme with system preference and cross-tab synchronization
 - User-scoped dashboard data and account ownership checks
@@ -44,6 +45,8 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 ### Next.js version
 
 A standalone Next.js version of the dashboard, including its own copy of the Express API, is available in [`nextjs/`](./nextjs/README.md). The existing Vite app and root npm scripts are unchanged. Follow the [Next.js setup instructions](./nextjs/README.md) to install and run the separate project.
+
+For link previews when creating shares from the Vite client, set `VITE_SHARE_BASE_URL` to the deployed Next.js origin. Both deployments must use the same MongoDB database; the Next.js share page supplies social preview metadata.
 
 ## Project Structure
 
