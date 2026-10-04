@@ -8,6 +8,7 @@ const AuthScreen = ({ onAuthSuccess }) => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
@@ -188,7 +189,17 @@ const AuthScreen = ({ onAuthSuccess }) => {
           {view === 'reset-password' && (
             <div className="form-group">
               <label htmlFor="auth-new-password">New password</label>
-              <input id="auth-new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="At least 8 characters" />
+              <div className="password-input-wrap">
+                <input id="auth-new-password" type={showNewPassword ? 'text' : 'password'} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="At least 8 characters" />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowNewPassword((previous) => !previous)}
+                  aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                >
+                  {showNewPassword ? 'Hide' : 'View'}
+                </button>
+              </div>
             </div>
           )}
 

@@ -101,7 +101,7 @@ NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/personal-trading-dashboard
 JWT_SECRET=your_secret_key
 CLIENT_URL=http://localhost:5173
-RESEND_API_KEY=re_your_api_key
+RESEND_API_KEY=re_5c*******************
 RESEND_FROM=Trading Dashboard <no-reply@your-verified-domain.com>
 # Optional separate HMAC key for storing OTP hashes.
 OTP_SECRET=your_otp_signing_secret
