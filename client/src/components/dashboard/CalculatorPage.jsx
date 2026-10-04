@@ -15,16 +15,25 @@ const currencyNames = {
 
 const forexCurrencies = Object.keys(currencyNames);
 const cryptoInstruments = [
-  { symbol: 'BTCUSD', base: 'BTC', quote: 'USD', name: 'Bitcoin', kind: 'crypto', coinId: 'bitcoin', contractSize: 1 },
-  { symbol: 'ETHUSD', base: 'ETH', quote: 'USD', name: 'Ethereum', kind: 'crypto', coinId: 'ethereum', contractSize: 1 },
-  { symbol: 'BNBUSD', base: 'BNB', quote: 'USD', name: 'BNB', kind: 'crypto', coinId: 'binancecoin', contractSize: 1 },
-  { symbol: 'SOLUSD', base: 'SOL', quote: 'USD', name: 'Solana', kind: 'crypto', coinId: 'solana', contractSize: 1 },
-  { symbol: 'XRPUSD', base: 'XRP', quote: 'USD', name: 'XRP', kind: 'crypto', coinId: 'ripple', contractSize: 1 },
-  { symbol: 'ADAUSD', base: 'ADA', quote: 'USD', name: 'Cardano', kind: 'crypto', coinId: 'cardano', contractSize: 1 },
-  { symbol: 'DOGEUSD', base: 'DOGE', quote: 'USD', name: 'Dogecoin', kind: 'crypto', coinId: 'dogecoin', contractSize: 1 },
-  { symbol: 'LTCUSD', base: 'LTC', quote: 'USD', name: 'Litecoin', kind: 'crypto', coinId: 'litecoin', contractSize: 1 },
-  { symbol: 'DOTUSD', base: 'DOT', quote: 'USD', name: 'Polkadot', kind: 'crypto', coinId: 'polkadot', contractSize: 1 },
-  { symbol: 'AVAXUSD', base: 'AVAX', quote: 'USD', name: 'Avalanche', kind: 'crypto', coinId: 'avalanche-2', contractSize: 1 },
+  { symbol: 'BTCUSD', base: 'BTC', quote: 'USD', name: 'Bitcoin', kind: 'crypto', assetClass: 'crypto', coinId: 'bitcoin', contractSize: 1 },
+  { symbol: 'ETHUSD', base: 'ETH', quote: 'USD', name: 'Ethereum', kind: 'crypto', assetClass: 'crypto', coinId: 'ethereum', contractSize: 1 },
+  { symbol: 'BNBUSD', base: 'BNB', quote: 'USD', name: 'BNB', kind: 'crypto', assetClass: 'crypto', coinId: 'binancecoin', contractSize: 1 },
+  { symbol: 'SOLUSD', base: 'SOL', quote: 'USD', name: 'Solana', kind: 'crypto', assetClass: 'crypto', coinId: 'solana', contractSize: 1 },
+  { symbol: 'XRPUSD', base: 'XRP', quote: 'USD', name: 'XRP', kind: 'crypto', assetClass: 'crypto', coinId: 'ripple', contractSize: 1 },
+  { symbol: 'ADAUSD', base: 'ADA', quote: 'USD', name: 'Cardano', kind: 'crypto', assetClass: 'crypto', coinId: 'cardano', contractSize: 1 },
+  { symbol: 'DOGEUSD', base: 'DOGE', quote: 'USD', name: 'Dogecoin', kind: 'crypto', assetClass: 'crypto', coinId: 'dogecoin', contractSize: 1 },
+  { symbol: 'LTCUSD', base: 'LTC', quote: 'USD', name: 'Litecoin', kind: 'crypto', assetClass: 'crypto', coinId: 'litecoin', contractSize: 1 },
+  { symbol: 'DOTUSD', base: 'DOT', quote: 'USD', name: 'Polkadot', kind: 'crypto', assetClass: 'crypto', coinId: 'polkadot', contractSize: 1 },
+  { symbol: 'AVAXUSD', base: 'AVAX', quote: 'USD', name: 'Avalanche', kind: 'crypto', assetClass: 'crypto', coinId: 'avalanche-2', contractSize: 1 },
+];
+
+const indexInstruments = [
+  { symbol: 'US30', base: 'US30', quote: 'USD', name: 'Dow Jones 30', kind: 'index', assetClass: 'indices', yahooSymbol: '%5EDJI', contractSize: 1 },
+  { symbol: 'NAS100', base: 'NAS100', quote: 'USD', name: 'Nasdaq 100', kind: 'index', assetClass: 'indices', yahooSymbol: '%5ENDX', contractSize: 1 },
+  { symbol: 'SPX500', base: 'SPX500', quote: 'USD', name: 'S&P 500', kind: 'index', assetClass: 'indices', yahooSymbol: '%5EGSPC', contractSize: 1 },
+  { symbol: 'UK100', base: 'UK100', quote: 'GBP', name: 'FTSE 100', kind: 'index', assetClass: 'indices', yahooSymbol: '%5EFTSE', contractSize: 1 },
+  { symbol: 'GER40', base: 'GER40', quote: 'EUR', name: 'DAX 40', kind: 'index', assetClass: 'indices', yahooSymbol: '%5EGDAXI', contractSize: 1 },
+  { symbol: 'JP225', base: 'JP225', quote: 'JPY', name: 'Nikkei 225', kind: 'index', assetClass: 'indices', yahooSymbol: '%5EN225', contractSize: 1 },
 ];
 
 const instruments = [
@@ -36,9 +45,11 @@ const instruments = [
       quote,
       name: `${currencyNames[base]} / ${currencyNames[quote]}`,
       kind: 'forex',
+      assetClass: 'forex',
       contractSize: 100000,
     }))),
-  { symbol: 'XAUUSD', base: 'XAU', quote: 'USD', name: 'Gold / US dollar', kind: 'gold', contractSize: 100 },
+  { symbol: 'XAUUSD', base: 'XAU', quote: 'USD', name: 'Gold / US dollar', kind: 'gold', assetClass: 'commodities', contractSize: 100 },
+  ...indexInstruments,
   ...cryptoInstruments,
 ];
 
@@ -75,6 +86,21 @@ const fetchInstrumentQuote = async (instrument, signal) => {
     const rate = Number(result.price);
     if (!Number.isFinite(rate) || rate <= 0) throw new Error('The gold quote provider returned an invalid price.');
     return { rate, date: result.updatedAt || null };
+  }
+
+  if (instrument.kind === 'index') {
+    const result = await fetchJson(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${instrument.yahooSymbol}?range=1d&interval=1m`,
+      signal
+    );
+    const chart = result.chart?.result?.[0];
+    const rate = Number(chart?.meta?.regularMarketPrice);
+    if (!Number.isFinite(rate) || rate <= 0) {
+      const providerError = result.chart?.error?.description;
+      throw new Error(providerError || `No live quote is available for ${instrument.name}.`);
+    }
+    const timestamp = Number(chart.meta.regularMarketTime);
+    return { rate, date: Number.isFinite(timestamp) ? new Date(timestamp * 1000).toISOString() : null };
   }
 
   const result = await fetchJson(
@@ -123,6 +149,11 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
     [instrumentSymbol]
   );
   const selectedAccount = accounts.find((account) => String(account._id || account.id) === selectedAccountId);
+  const leverageField = `${instrument.assetClass}Leverage`;
+  const selectedAccountLeverage = selectedAccount
+    ? parsePositiveNumber(selectedAccount[leverageField])
+    : 0;
+  const activeLeverage = selectedAccount ? selectedAccountLeverage : parsePositiveNumber(leverage);
 
   useEffect(() => {
     const selected = instruments.find((item) => item.symbol === instrumentSearch.trim().toUpperCase());
@@ -151,8 +182,8 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
       setQuoteToAccountRate(null);
       setRateDate(null);
       try {
-        const quoteCurrency = instrument.kind === 'forex' ? instrument.quote : 'USD';
-        const baseCurrency = instrument.kind === 'forex' ? instrument.base : 'USD';
+        const quoteCurrency = instrument.quote;
+        const baseCurrency = instrument.kind === 'forex' ? instrument.base : quoteCurrency;
         const [marketQuote, baseConversion, quoteConversion] = await Promise.all([
           fetchInstrumentQuote(instrument, signal),
           fetchFxRate(baseCurrency, accountCurrency, signal),
@@ -183,7 +214,7 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
   }, [instrument, accountCurrency]);
 
   const convertedBalance = parsePositiveNumber(balance);
-  const currentLeverage = parsePositiveNumber(leverage);
+  const currentLeverage = activeLeverage;
   const currentMarginLots = parsePositiveNumber(marginLots);
   const currentRiskPercent = riskMode === 'percent'
     ? parsePositiveNumber(riskPercent)
@@ -200,7 +231,9 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
   const notionalPerLot = hasConversions
     ? instrument.kind === 'forex'
       ? referencePrice * contractSize * quoteToAccountRate
-      : referencePrice * contractSize * baseToAccountRate
+      : referencePrice * contractSize * (
+        instrument.kind === 'index' ? quoteToAccountRate : baseToAccountRate
+      )
     : 0;
   const marginRequired = hasMarketData && currentLeverage > 0
     ? notionalPerLot * currentMarginLots / currentLeverage
@@ -233,7 +266,7 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
     ? (effectiveExitPrice - effectiveEntryPrice)
       * directionMultiplier * currentPnlLots * contractSize * quoteToAccountRate
     : null;
-  const quoteUnit = instrument.kind === 'forex' ? instrument.quote : 'USD';
+  const quoteUnit = instrument.quote;
   const quoteDigits = instrument.kind === 'forex'
     ? (instrument.quote === 'JPY' ? 3 : 5)
     : instrument.kind === 'gold'
@@ -281,7 +314,16 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
   const result = (() => {
     if (!hasCalculated) return null;
     if (activeCalculator === 'margin') {
-      if (marginRequired === null) return { title: 'Margin unavailable', detail: 'Wait for a market quote to load.' };
+      if (selectedAccount && currentLeverage <= 0) {
+        const categoryName = instrument.assetClass === 'indices' ? 'indices'
+          : instrument.assetClass === 'commodities' ? 'commodities'
+            : instrument.assetClass;
+        return {
+          title: 'Leverage not configured',
+          detail: `Edit ${selectedAccount.name} and enter its ${categoryName} leverage to calculate margin.`,
+        };
+      }
+      if (marginRequired === null) return { title: 'Margin unavailable', detail: 'Wait for a market quote and check the selected account balance.' };
       const accountUsage = marginUsagePercent === null
         ? 'Account margin usage unavailable'
         : `${formatNumber(marginUsagePercent)}% of ${selectedAccount ? `${selectedAccount.name}’s` : 'the'} balance`;
@@ -300,9 +342,12 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
     }
     if (activeCalculator === 'lot-size') {
       if (recommendedLots === null) return { title: 'Lot size unavailable', detail: 'Wait for a market quote and check your stop distance.' };
+      const marginEstimate = currentLeverage > 0
+        ? `${formatNumber(recommendedLotsMargin)} ${accountCurrency} margin · ${formatNumber(recommendedLotsMarginPercent)}% of ${selectedAccount ? `${selectedAccount.name}’s` : 'the'} balance`
+        : 'Set leverage to estimate required margin';
       return {
         title: `${formatNumber(recommendedLots, 4)} lots`,
-        detail: `${formatNumber(currentRiskAmount)} ${accountCurrency} risk · ${formatNumber(recommendedLotsMargin)} ${accountCurrency} margin · ${recommendedLotsMarginPercent === null ? 'Account margin usage unavailable' : `${formatNumber(recommendedLotsMarginPercent)}% of ${selectedAccount ? `${selectedAccount.name}’s` : 'the'} balance`}`,
+        detail: `${formatNumber(currentRiskAmount)} ${accountCurrency} risk · ${marginEstimate}`,
       };
     }
     return {
@@ -389,7 +434,11 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
               </div>
 
               {activeCalculator === 'margin' && <>
-                <label className="field-group"><span>Leverage (1:X)</span><input type="number" min="1" step="1" value={leverage} onChange={updateValue(setLeverage)} /></label>
+                <label className="field-group">
+                  <span>{selectedAccount ? `${instrument.assetClass[0].toUpperCase()}${instrument.assetClass.slice(1)} leverage (1:X)` : 'Leverage (1:X)'}</span>
+                  <input type="number" min="1" step="1" value={selectedAccount ? selectedAccountLeverage || '' : leverage}
+                    readOnly={Boolean(selectedAccount)} onChange={updateValue(setLeverage)} placeholder={selectedAccount ? 'Set in account settings' : '100'} />
+                </label>
                 <CalculatorLotControl value={marginLots} onChange={(value) => { setMarginLots(value); setHasCalculated(false); }} currentLots={currentMarginLots} />
               </>}
               {activeCalculator === 'profit-loss' && <>
@@ -438,6 +487,7 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
             <strong>Disclaimer</strong>
             <p>Results are estimates for informational purposes only and may differ from actual outcomes because of market conditions, broker specifications, fees, and swap policies. Public market-data quotes may be delayed. Verify instrument terms with your broker.</p>
             {activeCalculator === 'swap' && <p>Enter the swap rate from your broker. Positive or negative rates are supported; triple-swap nights are not applied automatically.</p>}
+            {instrument.kind === 'index' && <p>Index quotes come from Yahoo Finance. The calculator assumes one index unit per lot; confirm your broker’s index contract size before trading.</p>}
           </footer>
         </section>
       </main>

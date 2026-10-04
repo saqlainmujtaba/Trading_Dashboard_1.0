@@ -13,6 +13,7 @@ const inMemoryData = {
 
 const accountFields = [
   'name', 'propFirm', 'type', 'fundedAmount', 'balance', 'startingBalance',
+  'forexLeverage', 'indicesLeverage', 'commoditiesLeverage', 'cryptoLeverage',
   'maxDailyLoss', 'maxOverallLoss', 'profitTarget', 'nextPayoutDate',
   'payoutReceived', 'status', 'purchaseDate',
 ];

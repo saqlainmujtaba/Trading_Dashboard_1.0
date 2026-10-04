@@ -136,6 +136,24 @@ const AccountSection = ({
                 <FormField label="Current balance" hint="Live equity or current account balance">
                   <input type="number" value={accountForm.balance} onChange={(e) => handleFieldChange('balance', Number(e.target.value))} placeholder="0" />
                 </FormField>
+                <div className="account-leverage-settings">
+                  <h4>Instrument leverage (1:X)</h4>
+                  <p className="muted">Enter this account’s leverage for each market category. Leave 0 if the prop firm does not offer that category.</p>
+                  <div className="form-grid">
+                    <FormField label="Forex leverage">
+                      <input type="number" min="0" step="1" value={accountForm.forexLeverage ?? 0} onChange={(e) => handleFieldChange('forexLeverage', Number(e.target.value))} placeholder="e.g. 100" />
+                    </FormField>
+                    <FormField label="Indices leverage">
+                      <input type="number" min="0" step="1" value={accountForm.indicesLeverage ?? 0} onChange={(e) => handleFieldChange('indicesLeverage', Number(e.target.value))} placeholder="e.g. 50" />
+                    </FormField>
+                    <FormField label="Commodities leverage">
+                      <input type="number" min="0" step="1" value={accountForm.commoditiesLeverage ?? 0} onChange={(e) => handleFieldChange('commoditiesLeverage', Number(e.target.value))} placeholder="e.g. 20" />
+                    </FormField>
+                    <FormField label="Crypto leverage">
+                      <input type="number" min="0" step="1" value={accountForm.cryptoLeverage ?? 0} onChange={(e) => handleFieldChange('cryptoLeverage', Number(e.target.value))} placeholder="e.g. 5" />
+                    </FormField>
+                  </div>
+                </div>
                 <FormField label="Profit %" hint="Auto-calculated from current profit divided by funded amount">
                   <input type="number" value={accountForm.profitPercent} readOnly placeholder="0" />
                 </FormField>

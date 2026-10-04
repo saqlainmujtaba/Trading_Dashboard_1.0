@@ -163,13 +163,14 @@ Displays:
 ### Calculator Page
 Includes:
 - Margin estimates based on account balance, leverage, instrument, and lots
+- Per-account Forex, indices, commodities, and crypto leverage settings; margin calculations select the matching category automatically
 - Overnight swap estimates use the user-entered broker rate for the selected trade direction; triple-swap nights are not applied automatically
 - Risk-based lot sizing from balance, risk percentage, and stop distance
 - Profit/loss estimates from direction, entry, exit, and position size
-- Searchable Forex pairs, XAUUSD, and selected USD-priced crypto symbols
+- Searchable Forex pairs, major indices, XAUUSD, and selected USD-priced crypto symbols
 - Automatic quote and account-currency conversion using no-key public APIs
 
-Market rates can be delayed or unavailable. Forex calculations use 100,000 base units per lot, XAUUSD uses 100 troy ounces per lot, and crypto uses one coin per lot. These are estimates only; broker/exchange contract specifications may differ.
+Market rates can be delayed or unavailable. Forex calculations use 100,000 base units per lot, XAUUSD uses 100 troy ounces per lot, index CFDs assume one index unit per lot, and crypto uses one coin per lot. These are estimates only; broker/exchange contract specifications may differ.
 
 ### Backend API
 The server exposes endpoints for:

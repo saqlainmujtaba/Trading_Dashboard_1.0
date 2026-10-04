@@ -1276,6 +1276,16 @@ tbody tr:hover { background: var(--primary-soft); }
   grid-template-columns: repeat(2, minmax(220px, 1fr));
   gap: 10px;
 }
+.account-leverage-settings {
+  grid-column: 1 / -1;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-alt);
+}
+.account-leverage-settings h4 { margin: 0 0 5px; }
+.account-leverage-settings > p { margin: 0 0 12px; font-size: 0.82rem; }
+.account-leverage-settings .form-grid { background: transparent; }
 .form-actions, .row-actions, .action-stack {
   display: flex;
   gap: 8px;
