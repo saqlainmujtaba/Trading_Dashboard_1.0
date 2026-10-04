@@ -254,7 +254,18 @@ body[data-theme='dark'] .sidebar::before {
 .nav-page-group,
 .nav-page-links { display: grid; gap: 8px; }
 .nav-page-link {
-  color: var(--text) !important;
+  color: var(--primary) !important;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.nav-page-links > a {
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.nav-links a.nav-link-active {
+  color: var(--primary);
+  background: var(--primary-soft);
   font-weight: 700;
 }
 .nav-section-links {
@@ -266,7 +277,7 @@ body[data-theme='dark'] .sidebar::before {
 }
 .nav-section-links a {
   padding: 8px 10px;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 .nav-page-links {
   padding-top: 10px;

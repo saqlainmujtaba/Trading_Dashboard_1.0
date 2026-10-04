@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [areHomeSectionsOpen, setAreHomeSectionsOpen] = useState(false);
+  const location = useLocation();
   let profileName = '';
 
   try {
@@ -14,6 +16,13 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   const displayName = profileName || user?.name || 'Trader';
 
   const handleNavClick = () => setIsMobileMenuOpen(false);
+  const isHome = location.pathname === '/' || location.pathname === '/dashboard';
+  const isSectionActive = (section) => isHome && location.hash === `#${section}`;
+  const isPageActive = (path) => location.pathname === path;
+
+  useEffect(() => {
+    if (!isHome) setAreHomeSectionsOpen(false);
+  }, [isHome]);
 
   return (
     <aside className="sidebar">
@@ -40,19 +49,33 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
 
       <nav className={`nav-links ${isMobileMenuOpen ? 'nav-links-open' : ''}`}>
         <div className="nav-page-group">
-          <Link className="nav-page-link" to="/" onClick={handleNavClick}>Home</Link>
-          <div className="nav-section-links" aria-label="Home sections">
-            <Link to="/#overview" onClick={handleNavClick}>Overview</Link>
-            <Link to="/#accounts" onClick={handleNavClick}>Accounts</Link>
-            <Link to="/#planned" onClick={handleNavClick}>Planned</Link>
-            <Link to="/#portfolio" onClick={handleNavClick}>Portfolio</Link>
-            <Link to="/#history" onClick={handleNavClick}>History</Link>
-            <Link to="/#payouts" onClick={handleNavClick}>Payouts</Link>
-          </div>
+          <Link
+            className={`nav-page-link ${isHome ? 'nav-link-active' : ''}`}
+            to="/"
+            onClick={() => {
+              setAreHomeSectionsOpen(true);
+              handleNavClick();
+            }}
+            aria-current={isHome ? 'page' : undefined}
+            aria-expanded={areHomeSectionsOpen}
+            aria-controls="home-section-links"
+          >
+            Home
+          </Link>
+          {areHomeSectionsOpen && (
+            <div id="home-section-links" className="nav-section-links" aria-label="Home sections">
+              <Link className={isSectionActive('overview') ? 'nav-link-active' : ''} to="/#overview" onClick={handleNavClick} aria-current={isSectionActive('overview') ? 'location' : undefined}>Overview</Link>
+              <Link className={isSectionActive('accounts') ? 'nav-link-active' : ''} to="/#accounts" onClick={handleNavClick} aria-current={isSectionActive('accounts') ? 'location' : undefined}>Accounts</Link>
+              <Link className={isSectionActive('planned') ? 'nav-link-active' : ''} to="/#planned" onClick={handleNavClick} aria-current={isSectionActive('planned') ? 'location' : undefined}>Planned</Link>
+              <Link className={isSectionActive('portfolio') ? 'nav-link-active' : ''} to="/#portfolio" onClick={handleNavClick} aria-current={isSectionActive('portfolio') ? 'location' : undefined}>Portfolio</Link>
+              <Link className={isSectionActive('history') ? 'nav-link-active' : ''} to="/#history" onClick={handleNavClick} aria-current={isSectionActive('history') ? 'location' : undefined}>History</Link>
+              <Link className={isSectionActive('payouts') ? 'nav-link-active' : ''} to="/#payouts" onClick={handleNavClick} aria-current={isSectionActive('payouts') ? 'location' : undefined}>Payouts</Link>
+            </div>
+          )}
         </div>
         <div className="nav-page-links" aria-label="Separate pages">
-          <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
-          <Link to="/profile" onClick={handleNavClick}>Profile</Link>
+          <Link className={isPageActive('/analytics') ? 'nav-link-active' : ''} to="/analytics" onClick={handleNavClick} aria-current={isPageActive('/analytics') ? 'page' : undefined}>Analytics</Link>
+          <Link className={isPageActive('/profile') ? 'nav-link-active' : ''} to="/profile" onClick={handleNavClick} aria-current={isPageActive('/profile') ? 'page' : undefined}>Profile</Link>
         </div>
 
         <div className="mobile-sidebar-footer">
