@@ -4,6 +4,7 @@ import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import SharePanel from '../common/SharePanel';
+import { accountShareItem, accountTradesShareItem, activeAccountsShareItem } from '../../utils/shareSnapshots';
 
 const accountSortOptions = [
   { value: 'name.asc', label: 'Account name: A to Z' },
@@ -110,11 +111,8 @@ const AccountSection = ({
 
       {!isLoading && accounts.length > 0 && (
         <SharePanel
-          accounts={accounts}
-          allTrades={trades}
+          items={[activeAccountsShareItem(accounts, formatCurrency)]}
           ownerName={ownerName}
-          shareTypes={['active-accounts', 'account', 'account-trading']}
-          defaultShareType="active-accounts"
         />
       )}
 
@@ -258,6 +256,16 @@ const AccountSection = ({
               <div><label>Payout received</label><p>{formatCurrency(account.payoutReceived)}</p></div>
             </div>
             <div className="row-actions">
+              <SharePanel
+                items={[
+                  accountShareItem(account, formatCurrency),
+                  ...(trades.filter((trade) => trade.account === account.name).length
+                    ? [accountTradesShareItem(account, trades.filter((trade) => trade.account === account.name), formatCurrency)]
+                    : []),
+                ]}
+                ownerName={ownerName}
+                compact
+              />
               <button className="secondary-btn" type="button" onClick={() => { setAccountForm(account); setEditingAccountId(account._id); setShowAccountForm(true); }}>Edit</button>
               <button
                 className="danger-btn"

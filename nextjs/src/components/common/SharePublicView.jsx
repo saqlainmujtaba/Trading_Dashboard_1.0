@@ -34,14 +34,21 @@ const SharePublicView = ({ initialShare, token }) => {
       </header>
       <section className="share-public-card">
         <p className="eyebrow">Shared trading snapshot</p>
+        <p className="share-public-owner">Shared by {share.ownerName || 'Trader'}</p>
         <h1>{share.title}</h1>
         {share.description && <p className="muted">{share.description}</p>}
-        <p className="share-public-owner">Shared by {share.ownerName || 'Trader'}</p>
         {share.snapshot.highlights?.length > 0 && (
           <div className="share-public-highlights">
-            {share.snapshot.highlights.map((item) => (
-              <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>
-            ))}
+            {share.snapshot.highlights.map((item) => {
+              const amount = Number(String(item.value).replace(/[^\d.-]/g, ''));
+              const pnlHighlight = /p\/l|profit|loss/i.test(item.label);
+              return (
+                <div key={item.label}>
+                  <span>{item.label}</span>
+                  <strong className={pnlHighlight ? (amount < 0 ? 'negative-number' : 'positive-number') : undefined}>{item.value}</strong>
+                </div>
+              );
+            })}
           </div>
         )}
         <div className="table-wrap">
@@ -49,7 +56,11 @@ const SharePublicView = ({ initialShare, token }) => {
             <thead><tr>{share.snapshot.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
             <tbody>
               {share.snapshot.rows.length ? share.snapshot.rows.map((row, index) => (
-                <tr key={`${index}-${row[0]}`}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
+                <tr key={`${index}-${row[0]}`}>{row.map((cell, cellIndex) => {
+                  const isPnl = /p\/l|profit|loss/i.test(share.snapshot.columns[cellIndex]);
+                  const amount = Number(String(cell).replace(/[^\d.-]/g, ''));
+                  return <td className={isPnl ? (amount < 0 ? 'negative-number' : 'positive-number') : undefined} key={cellIndex}>{cell}</td>;
+                })}</tr>
               )) : <tr><td className="empty-cell" colSpan={share.snapshot.columns.length}>No records in this shared summary.</td></tr>}
             </tbody>
           </table>

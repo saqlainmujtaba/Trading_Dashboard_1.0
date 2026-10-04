@@ -8,6 +8,7 @@ const allowedTypes = new Set([
   'monthly-trading',
   'account',
   'account-trading',
+  'payout',
   'payout-history',
   'active-accounts',
   'monthly-payouts',

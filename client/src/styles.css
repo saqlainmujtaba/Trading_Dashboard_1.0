@@ -430,7 +430,18 @@ body[data-theme='dark'] .status-paused {
 .monthly-payout-item > span:nth-child(2) { text-align: right; }
 .monthly-payout-item > strong { text-align: right; }
 .monthly-payout-list-head { color: var(--muted); font-size: 0.78rem; font-weight: 600; }
-.share-panel { display: grid; gap: 12px; margin: 16px 0; }
+.share-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.share-panel-compact { display: flex; gap: 6px; margin: 0; }
+.share-action { display: flex; flex-wrap: wrap; gap: 6px; }
+.share-action .secondary-btn { white-space: nowrap; }
+.share-manage-trigger { border: 0; padding: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.share-dialog-backdrop { z-index: 100; }
+.share-dialog { width: min(620px, 100%); }
+.share-dialog .modal-header { align-items: flex-start; }
+.share-dialog .modal-header h3 { margin: 0; }
+.share-dialog .form-actions { margin-top: 0; }
+.history-filter-controls { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.history-filter-controls .field-group { min-width: 0; }
 .share-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .share-preview, .share-link-result, .share-management { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
 .share-preview span, .share-message, .share-public-footnote { color: var(--muted); font-size: 0.85rem; }
@@ -450,6 +461,8 @@ body[data-theme='dark'] .status-paused {
 .share-public-highlights span { color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 600px) {
   .share-management-row { align-items: flex-start; flex-direction: column; }
+  .history-filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .share-panel-compact { flex-wrap: wrap; }
 }
 .calculator-market-panel { margin: 24px 0; }
 .calculator-market-controls {

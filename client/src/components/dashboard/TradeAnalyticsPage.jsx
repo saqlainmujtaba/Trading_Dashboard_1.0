@@ -6,6 +6,7 @@ import { sortRows } from '../common/sortRows';
 import Sidebar from '../layout/Sidebar';
 import { buildMonthlyPayoutSummary } from '../../utils/monthlyPayoutSummary';
 import SharePanel from '../common/SharePanel';
+import { monthlyPayoutsShareItem } from '../../utils/shareSnapshots';
 
 const analyticsTradeSortOptions = [
   { value: 'date.desc', label: 'Date: newest first' },
@@ -425,6 +426,10 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
               </button>
             </div>
           </div>
+          <SharePanel
+            items={[monthlyPayoutsShareItem(monthlyPayoutsByActiveAccount, payoutMonth, formatCurrency)]}
+            ownerName={user?.name}
+          />
           <div className="monthly-payout-totals">
             <div><span>Total recorded payouts</span><strong>{formatCurrency(monthlyPayoutTotal)}</strong></div>
             <div><span>Return on active funded amount</span><strong>{monthlyPayoutReturn === null ? '—' : `${monthlyPayoutReturn.toFixed(2)}%`}</strong></div>
@@ -449,15 +454,6 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             <p className="empty-state">No active accounts existed in {new Date(`${payoutMonth}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
           )}
         </section>
-
-        <SharePanel
-          accounts={accounts}
-          monthlyPayouts={monthlyPayoutsByActiveAccount}
-          payoutMonth={payoutMonth}
-          ownerName={user?.name}
-          shareTypes={['monthly-payouts']}
-          defaultShareType="monthly-payouts"
-        />
 
         <section className="analytics-panel filter-panel" aria-label="Trade filters">
           <div className="section-head">

@@ -81,3 +81,14 @@ test('share creation rejects malformed snapshots', async () => {
   await createShare(createRequest({ ...sampleShare, snapshot: { columns: ['Pair'], rows: [['EURUSD', 'extra']] } }), response);
   assert.equal(response.statusCode, 400);
 });
+
+test('individual payout snapshots are accepted', async () => {
+  const response = createResponse();
+  await createShare(createRequest({
+    type: 'payout',
+    title: 'Alpha Payout',
+    snapshot: { columns: ['Date', 'Account', 'Amount'], rows: [['2026-06-01', 'Alpha', '$250']] },
+  }), response);
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.share.type, 'payout');
+});

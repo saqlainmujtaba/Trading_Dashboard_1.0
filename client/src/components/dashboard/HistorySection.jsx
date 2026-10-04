@@ -5,6 +5,7 @@ import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import { parseTradeFile } from '../../utils/tradeImport';
 import SharePanel from '../common/SharePanel';
+import { filterTradeHistory, payoutHistoryShareItem, payoutShareItem, tradeHistoryShareItem, tradeShareItem } from '../../utils/shareSnapshots';
 
 const tradeSortOptions = [
   { value: 'date.desc', label: 'Date: newest first' },
@@ -72,6 +73,7 @@ const HistorySection = ({
 }) => {
   const importFileRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
+  const [historyFilters, setHistoryFilters] = useState({ month: '', account: '', pair: '', side: '' });
   const [tradePageSize, setTradePageSize] = useState(10);
   const [tradePage, setTradePage] = useState(1);
   const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
@@ -84,7 +86,11 @@ const HistorySection = ({
   const [importAccount, setImportAccount] = useState('');
   const [importError, setImportError] = useState('');
   const [importResult, setImportResult] = useState('');
-  const sortedTrades = sortRows(trades || [], tradeSortBy);
+  const tradeList = trades || [];
+  const historyAccountOptions = [...new Set(tradeList.map((trade) => trade.account).filter(Boolean))].sort();
+  const historyPairOptions = [...new Set(tradeList.map((trade) => trade.pair).filter(Boolean))].sort();
+  const filteredTrades = filterTradeHistory(tradeList, historyFilters);
+  const sortedTrades = sortRows(filteredTrades, tradeSortBy);
   const tradePageCount = tradePageSize === 'all'
     ? 1
     : Math.max(1, Math.ceil(sortedTrades.length / tradePageSize));
@@ -215,14 +221,38 @@ const HistorySection = ({
         </div>
         {!isLoading && !isTradesLoading && sortedTrades.length > 0 && (
           <SharePanel
-            accounts={accounts}
-            allTrades={sortedTrades}
-            filteredTrades={sortedTrades}
+            items={[tradeHistoryShareItem(sortedTrades, formatCurrency)]}
             ownerName={ownerName}
-            shareTypes={['trade-history', 'trade', 'monthly-trading', 'account-trading']}
-            defaultShareType="trade-history"
           />
         )}
+        <div className="history-filter-controls" aria-label="Filter trade history">
+          <label className="field-group">
+            <span>Month</span>
+            <input type="month" value={historyFilters.month} onChange={(event) => { setHistoryFilters({ ...historyFilters, month: event.target.value }); setTradePage(1); }} />
+          </label>
+          <label className="field-group">
+            <span>Account</span>
+            <select value={historyFilters.account} onChange={(event) => { setHistoryFilters({ ...historyFilters, account: event.target.value }); setTradePage(1); }}>
+              <option value="">All accounts</option>
+              {historyAccountOptions.map((account) => <option key={account} value={account}>{account}</option>)}
+            </select>
+          </label>
+          <label className="field-group">
+            <span>Pair</span>
+            <select value={historyFilters.pair} onChange={(event) => { setHistoryFilters({ ...historyFilters, pair: event.target.value }); setTradePage(1); }}>
+              <option value="">All pairs</option>
+              {historyPairOptions.map((pair) => <option key={pair} value={pair}>{pair}</option>)}
+            </select>
+          </label>
+          <label className="field-group">
+            <span>Direction</span>
+            <select value={historyFilters.side} onChange={(event) => { setHistoryFilters({ ...historyFilters, side: event.target.value }); setTradePage(1); }}>
+              <option value="">Buy and Sell</option>
+              <option value="Buy">Buy</option>
+              <option value="Sell">Sell</option>
+            </select>
+          </label>
+        </div>
 
         {isImportOpen && (
           <div className="modal-backdrop" onClick={() => setIsImportOpen(false)}>
@@ -580,6 +610,7 @@ const HistorySection = ({
                   <td>{trade.rr}</td>
                   <td>{trade.notes}</td>
                   <td className="action-stack">
+                    <SharePanel items={[tradeShareItem(trade, formatCurrency)]} ownerName={ownerName} compact />
                     <button
                       className="secondary-btn"
                       type="button"
@@ -651,7 +682,7 @@ const HistorySection = ({
             </select>
           </label>
           <span className="trade-page-summary">
-            Showing {firstVisibleTrade}-{lastVisibleTrade} of {sortedTrades.length} trades
+            Showing {firstVisibleTrade}-{lastVisibleTrade} of {sortedTrades.length} matching trades
           </span>
           <div className="trade-page-buttons">
             <button
@@ -700,16 +731,10 @@ const HistorySection = ({
             </button>
             <span className="section-tag">Payments</span>
           </div>
-          {!isLoading && !isPayoutsLoading && sortedPayouts.length > 0 && (
-            <SharePanel
-              accounts={accounts}
-              payouts={sortedPayouts}
-              ownerName={ownerName}
-              shareTypes={['payout-history']}
-              defaultShareType="payout-history"
-            />
-          )}
         </div>
+        {!isLoading && !isPayoutsLoading && sortedPayouts.length > 0 && (
+          <SharePanel items={[payoutHistoryShareItem(sortedPayouts, formatCurrency)]} ownerName={ownerName} />
+        )}
 
         {showPayoutForm && (
           <div
@@ -856,6 +881,7 @@ const HistorySection = ({
                 <span>{payout.method}</span>
                 <small>{payout.status}</small>
                 <div className="row-actions compact-actions">
+                  <SharePanel items={[payoutShareItem(payout, formatCurrency)]} ownerName={ownerName} compact />
                   <button
                     className="secondary-btn"
                     type="button"
