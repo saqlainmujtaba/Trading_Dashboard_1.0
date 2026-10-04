@@ -39,14 +39,21 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
       </div>
 
       <nav className={`nav-links ${isMobileMenuOpen ? 'nav-links-open' : ''}`}>
-        <Link to="/#overview" onClick={handleNavClick}>Overview</Link>
-        <Link to="/#accounts" onClick={handleNavClick}>Accounts</Link>
-        <Link to="/#planned" onClick={handleNavClick}>Planned</Link>
-        <Link to="/#portfolio" onClick={handleNavClick}>Portfolio</Link>
-        <Link to="/#history" onClick={handleNavClick}>History</Link>
-        <Link to="/#payouts" onClick={handleNavClick}>Payouts</Link>
-        <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
-        <Link to="/profile" onClick={handleNavClick}>Profile</Link>
+        <div className="nav-page-group">
+          <Link className="nav-page-link" to="/" onClick={handleNavClick}>Home</Link>
+          <div className="nav-section-links" aria-label="Home sections">
+            <Link to="/#overview" onClick={handleNavClick}>Overview</Link>
+            <Link to="/#accounts" onClick={handleNavClick}>Accounts</Link>
+            <Link to="/#planned" onClick={handleNavClick}>Planned</Link>
+            <Link to="/#portfolio" onClick={handleNavClick}>Portfolio</Link>
+            <Link to="/#history" onClick={handleNavClick}>History</Link>
+            <Link to="/#payouts" onClick={handleNavClick}>Payouts</Link>
+          </div>
+        </div>
+        <div className="nav-page-links" aria-label="Separate pages">
+          <Link to="/analytics" onClick={handleNavClick}>Analytics</Link>
+          <Link to="/profile" onClick={handleNavClick}>Profile</Link>
+        </div>
 
         <div className="mobile-sidebar-footer">
           <div className="user-summary">
