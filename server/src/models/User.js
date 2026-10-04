@@ -5,7 +5,6 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    emailVerified: { type: Boolean, default: true },
     profile: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     demoDataSeeded: { type: Boolean, default: false },
     isDemo: { type: Boolean, default: false },

@@ -7,22 +7,10 @@ import Payout from '../models/Payout.js';
 import PlannedAccount from '../models/PlannedAccount.js';
 import Trade from '../models/Trade.js';
 import User from '../models/User.js';
-import { EmailConfigurationError, sendOtpEmail } from '../services/emailService.js';
-import {
-  createOtp,
-  deleteOtp,
-  findOtp,
-  newOtpRecord,
-  otpMatches,
-  saveOtp,
-} from '../services/emailOtp.js';
 import { removeInMemoryDashboardData, seedInMemoryDemoData } from './dashboardController.js';
 
 const inMemoryUsers = [];
 const DEMO_LIFETIME_MS = 10 * 24 * 60 * 60 * 1000;
-const OTP_RESEND_DELAY_MS = 60 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_REQUEST_MESSAGE = 'If an account exists for this email, a password reset code has been sent.';
 const profileFields = [
   'fullName',
   'tradingAlias',
@@ -294,72 +282,15 @@ export const registerUser = async (req, res) => {
       : inMemoryUsers.find((user) => user.email.toLowerCase() === email);
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
-    const previousOtp = await findOtp(email, 'verify-email');
-    if (previousOtp?.sentAt > new Date(Date.now() - OTP_RESEND_DELAY_MS)) {
-      return res.status(429).json({ message: 'Please wait before requesting another verification code.' });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const otp = createOtp();
-    const otpRecord = newOtpRecord({ email, purpose: 'verify-email', otp, name, passwordHash });
-    await saveOtp(otpRecord);
-    try {
-      await sendOtpEmail({ email, otp, purpose: 'verify-email' });
-    } catch (error) {
-      await deleteOtp(email, 'verify-email');
-      if (error instanceof EmailConfigurationError) {
-        return res.status(503).json({ message: error.message });
-      }
-      console.error('Verification email delivery failed:', error);
-      return res.status(502).json({ message: 'Could not send the verification email. Please try again later.' });
-    }
-
-    return res.status(200).json({ message: 'A verification code has been sent to your email.' });
-  } catch (error) {
-    return res.status(500).json({ message: 'Could not start registration.', error: error.message });
-  }
-};
-
-export const verifyEmail = async (req, res) => {
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  const otp = typeof req.body?.otp === 'string' ? req.body.otp.trim() : '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !/^\d{6}$/.test(otp)) {
-    return res.status(400).json({ message: 'Enter the email address and 6-digit verification code.' });
-  }
-
-  try {
-    const record = await findOtp(email, 'verify-email');
-    if (!record || record.expiresAt <= new Date() || record.attempts >= OTP_MAX_ATTEMPTS) {
-      await deleteOtp(email, 'verify-email');
-      return res.status(400).json({ message: 'The verification code is invalid or expired. Request a new code.' });
-    }
-
-    record.attempts += 1;
-    if (!otpMatches(record, otp)) {
-      if (record.attempts >= OTP_MAX_ATTEMPTS) await deleteOtp(email, 'verify-email');
-      else await saveOtp(record);
-      return res.status(400).json({ message: 'The verification code is incorrect.' });
-    }
-
-    const existingUser = mongoose.connection.readyState === 1
-      ? await User.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') })
-      : inMemoryUsers.find((user) => user.email.toLowerCase() === email);
-    if (existingUser) {
-      await deleteOtp(email, 'verify-email');
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
     const userData = {
-      name: record.name,
+      name,
       email,
-      password: record.passwordHash,
-      emailVerified: true,
+      password: await bcrypt.hash(password, 10),
     };
     const user = mongoose.connection.readyState === 1
       ? await User.create(userData)
       : { ...userData, _id: `local-${randomUUID()}` };
     if (mongoose.connection.readyState !== 1) inMemoryUsers.push(user);
-    await deleteOtp(email, 'verify-email');
 
     return res.status(201).json({
       _id: user._id,
@@ -369,82 +300,7 @@ export const verifyEmail = async (req, res) => {
     });
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ message: 'User already exists' });
-    return res.status(500).json({ message: 'Could not verify email.', error: error.message });
-  }
-};
-
-export const requestPasswordReset = async (req, res) => {
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-    return res.status(400).json({ message: 'Enter a valid email address.' });
-  }
-
-  try {
-    const user = mongoose.connection.readyState === 1
-      ? await User.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') })
-      : inMemoryUsers.find((item) => item.email.toLowerCase() === email);
-    if (!user || user.isDemo) return res.json({ message: OTP_REQUEST_MESSAGE });
-
-    const previousOtp = await findOtp(email, 'reset-password');
-    if (previousOtp?.sentAt > new Date(Date.now() - OTP_RESEND_DELAY_MS)) {
-      return res.json({ message: OTP_REQUEST_MESSAGE });
-    }
-
-    const otp = createOtp();
-    await saveOtp(newOtpRecord({ email, purpose: 'reset-password', otp }));
-    try {
-      await sendOtpEmail({ email, otp, purpose: 'reset-password' });
-    } catch (error) {
-      await deleteOtp(email, 'reset-password');
-      if (error instanceof EmailConfigurationError) {
-        return res.status(503).json({ message: error.message });
-      }
-      console.error('Password reset email delivery failed:', error);
-      return res.status(502).json({ message: 'Could not send the password reset email. Please try again later.' });
-    }
-
-    return res.json({ message: OTP_REQUEST_MESSAGE });
-  } catch (error) {
-    return res.status(500).json({ message: 'Could not start password reset.', error: error.message });
-  }
-};
-
-export const resetPassword = async (req, res) => {
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  const otp = typeof req.body?.otp === 'string' ? req.body.otp.trim() : '';
-  const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !/^\d{6}$/.test(otp) || password.length < 8) {
-    return res.status(400).json({ message: 'Enter the 6-digit code and a password of at least 8 characters.' });
-  }
-
-  try {
-    const record = await findOtp(email, 'reset-password');
-    if (!record || record.expiresAt <= new Date() || record.attempts >= OTP_MAX_ATTEMPTS) {
-      await deleteOtp(email, 'reset-password');
-      return res.status(400).json({ message: 'The reset code is invalid or expired. Request a new code.' });
-    }
-
-    record.attempts += 1;
-    if (!otpMatches(record, otp)) {
-      if (record.attempts >= OTP_MAX_ATTEMPTS) await deleteOtp(email, 'reset-password');
-      else await saveOtp(record);
-      return res.status(400).json({ message: 'The reset code is incorrect.' });
-    }
-
-    const user = mongoose.connection.readyState === 1
-      ? await User.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') })
-      : inMemoryUsers.find((item) => item.email.toLowerCase() === email);
-    if (!user || user.isDemo) {
-      await deleteOtp(email, 'reset-password');
-      return res.status(400).json({ message: 'The reset request is invalid. Request a new code.' });
-    }
-
-    user.password = await bcrypt.hash(password, 10);
-    if (mongoose.connection.readyState === 1) await user.save();
-    await deleteOtp(email, 'reset-password');
-    return res.json({ message: 'Password reset successful. You can now log in with your new password.' });
-  } catch (error) {
-    return res.status(500).json({ message: 'Could not reset password.', error: error.message });
+    return res.status(500).json({ message: 'Could not create account.', error: error.message });
   }
 };
 
@@ -491,10 +347,6 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
-    if (user.emailVerified === false) {
-      return res.status(403).json({ message: 'Verify your email address before signing in.' });
-    }
-
     await seedDemoContent(user);
 
     res.json({

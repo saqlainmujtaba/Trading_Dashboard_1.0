@@ -100,6 +100,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const [editingPayoutId, setEditingPayoutId] = useState(null);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [monthlyReturnPercent, setMonthlyReturnPercent] = useState('0');
 
   useEffect(() => {
     const hash = location.hash.replace('#', '');
@@ -130,6 +131,28 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const plannedAccounts = dashboardData?.plannedAccounts || [];
   const trades = dashboardData?.trades || [];
   const payouts = dashboardData?.payouts || [];
+  const activeAccounts = useMemo(
+    () => accounts.filter((account) => account.status === 'Active'),
+    [accounts]
+  );
+  const monthlyReturnByAccount = useMemo(() => {
+    const parsedPercentage = Number(monthlyReturnPercent);
+    const percentage = Number.isFinite(parsedPercentage) ? parsedPercentage : 0;
+    return activeAccounts.map((account) => {
+      const parsedFundedAmount = Number(account.fundedAmount);
+      const fundedAmount = Number.isFinite(parsedFundedAmount) ? parsedFundedAmount : 0;
+      const monthlyReturn = Number((fundedAmount * percentage / 100).toFixed(2));
+      return {
+        id: account._id || account.name,
+        name: account.name,
+        fundedAmount,
+        monthlyReturn,
+        projectedFunding: fundedAmount + monthlyReturn,
+      };
+    });
+  }, [activeAccounts, monthlyReturnPercent]);
+  const monthlyReturnTotal = monthlyReturnByAccount.reduce((sum, account) => sum + account.monthlyReturn, 0);
+  const projectedActiveFunding = monthlyReturnByAccount.reduce((sum, account) => sum + account.projectedFunding, 0);
 
   const updateAccountField = (field, value) => {
     const nextForm = { ...accountForm, [field]: value };
@@ -280,7 +303,56 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           </div>
         </header>
 
-        <SummaryCards stats={stats} formatCurrency={formatCurrency} isLoading={isLoading} loadingSections={loadingSections} />
+        <section className="section-block monthly-return-section">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Projection</p>
+              <h2>Monthly Return Calculator</h2>
+            </div>
+          </div>
+          <div className="monthly-return-panel">
+            <div className="form-group monthly-return-input">
+              <label htmlFor="monthly-return-percent">Monthly return</label>
+              <div className="input-suffix-wrap">
+                <input
+                  id="monthly-return-percent"
+                  type="number"
+                  min="-100"
+                  step="0.01"
+                  value={monthlyReturnPercent}
+                  onChange={(event) => setMonthlyReturnPercent(event.target.value)}
+                />
+                <span>%</span>
+              </div>
+            </div>
+            <p className="muted">Calculated separately from each active account's funded amount. This is a projection and does not change saved balances.</p>
+            {isLoading || loadingSections.has('accounts') ? (
+              <Skeleton className="skeleton-value" />
+            ) : monthlyReturnByAccount.length > 0 ? (
+              <div className="monthly-return-list">
+                {monthlyReturnByAccount.map((account) => (
+                  <div className="monthly-return-item" key={account.id}>
+                    <span>{account.name}</span>
+                    <span>
+                      {formatCurrency(account.fundedAmount)} + {formatCurrency(account.monthlyReturn)}
+                      {' = '}
+                      <strong>{formatCurrency(account.projectedFunding)}</strong>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">Add an active account to see its monthly return projection.</p>
+            )}
+          </div>
+        </section>
+
+        <SummaryCards
+          stats={{ ...stats, monthlyReturn: monthlyReturnTotal, projectedActiveFunding }}
+          formatCurrency={formatCurrency}
+          isLoading={isLoading}
+          loadingSections={loadingSections}
+        />
 
         <PortfolioSection
           accounts={accounts}

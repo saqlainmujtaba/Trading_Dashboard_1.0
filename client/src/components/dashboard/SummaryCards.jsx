@@ -5,6 +5,8 @@ const SummaryCards = ({ stats, formatCurrency, isLoading = false, loadingSection
     ['Total Accounts', stats.totalAccounts, ['accounts']],
     ['Active Accounts', stats.activeAccounts, ['accounts']],
     ['Total Funding', formatCurrency(stats.totalFunding), ['accounts']],
+    ['Estimated Monthly Return', formatCurrency(stats.monthlyReturn), ['accounts']],
+    ['Projected Active Funding', formatCurrency(stats.projectedActiveFunding), ['accounts']],
     ['Active PnL', formatCurrency(stats.totalProfit - stats.totalPayouts), ['trades', 'payouts']],
     ['Total Payouts', formatCurrency(stats.totalPayouts), ['payouts']],
     ['Failed Accounts', stats.failedAccounts, ['accounts']],

@@ -101,13 +101,9 @@ NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/personal-trading-dashboard
 JWT_SECRET=your_secret_key
 CLIENT_URL=http://localhost:5173
-RESEND_API_KEY=re_5c*******************
-RESEND_FROM=Trading Dashboard <no-reply@your-verified-domain.com>
-# Optional separate HMAC key for storing OTP hashes.
-OTP_SECRET=your_otp_signing_secret
 ```
 
-For hosted deployments such as Render, use Resend's HTTPS API for OTP email rather than SMTP. Create a Resend API key and verify the sending domain in Resend, then set `RESEND_API_KEY` and `RESEND_FROM` in the server's deployment environment. `RESEND_FROM` must use an address on a verified domain. SMTP remains available as a local/alternative fallback when `RESEND_API_KEY` is not set. For deployment, also set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, and the deployed frontend origin as `CLIENT_URL`. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Do not commit production secrets.
+Email verification and OTP-based password recovery are currently disabled. For deployment, set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, and the deployed frontend origin as `CLIENT_URL`. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Do not commit production secrets.
 
 ## Run the Application
 
