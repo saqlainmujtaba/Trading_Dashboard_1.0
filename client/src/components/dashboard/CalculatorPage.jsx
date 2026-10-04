@@ -54,6 +54,43 @@ const instruments = [
 ];
 
 const accountCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const toLocalDateInput = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const addCalendarDays = (date, days) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return toLocalDateInput(nextDate);
+};
+
+const countSwapRollovers = (openDate, closeDate, tripleSwapWeekday) => {
+  if (!openDate || !closeDate || closeDate <= openDate) return null;
+  const currentDate = new Date(`${openDate}T12:00:00`);
+  const close = new Date(`${closeDate}T12:00:00`);
+  let standardRollovers = 0;
+  let tripleRollovers = 0;
+
+  while (currentDate < close) {
+    const weekday = currentDate.getDay();
+    if (weekday > 0 && weekday < 6) {
+      if (weekdays[weekday] === tripleSwapWeekday) tripleRollovers += 1;
+      else standardRollovers += 1;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return {
+    standardRollovers,
+    tripleRollovers,
+    weightedRollovers: standardRollovers + tripleRollovers * 3,
+  };
+};
 
 const parsePositiveNumber = (value) => {
   const number = Number(value);
@@ -142,7 +179,9 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
   const [activeCalculator, setActiveCalculator] = useState('profit-loss');
   const [hasCalculated, setHasCalculated] = useState(false);
   const [swapRate, setSwapRate] = useState('0');
-  const [swapNights, setSwapNights] = useState('1');
+  const [swapOpenDate, setSwapOpenDate] = useState(() => toLocalDateInput(new Date()));
+  const [swapCloseDate, setSwapCloseDate] = useState(() => addCalendarDays(new Date(), 1));
+  const [tripleSwapWeekday, setTripleSwapWeekday] = useState('Wednesday');
 
   const instrument = useMemo(
     () => instruments.find((item) => item.symbol === instrumentSymbol) || instruments[0],
@@ -275,7 +314,14 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
   const quoteUpdated = rateDate
     ? `Quote reference: ${rateDate.slice(0, 10)}`
     : 'Quote reference from public market-data sources';
-  const swapTotal = Number(swapRate || 0) * currentPnlLots * parsePositiveNumber(swapNights);
+  const swapRolloverCount = countSwapRollovers(
+    swapOpenDate,
+    swapCloseDate,
+    instrument.kind === 'forex' ? 'Wednesday' : tripleSwapWeekday
+  );
+  const swapTotal = swapRolloverCount
+    ? Number(swapRate || 0) * currentPnlLots * swapRolloverCount.weightedRollovers
+    : 0;
   const updateValue = (setter) => (event) => {
     setter(event.target.value);
     setHasCalculated(false);
@@ -308,7 +354,10 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
     setEntryPrice('');
     setExitPrice('');
     setSwapRate('0');
-    setSwapNights('1');
+    const today = new Date();
+    setSwapOpenDate(toLocalDateInput(today));
+    setSwapCloseDate(addCalendarDays(today, 1));
+    setTripleSwapWeekday('Wednesday');
   };
 
   const result = (() => {
@@ -350,9 +399,12 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
         detail: `${formatNumber(currentRiskAmount)} ${accountCurrency} risk · ${marginEstimate}`,
       };
     }
+    if (swapRolloverCount === null) {
+      return { title: 'Check your dates', detail: 'The close date must be after the open date.' };
+    }
     return {
       title: `${swapTotal >= 0 ? '+' : ''}${formatNumber(swapTotal)} ${accountCurrency}`,
-      detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots · ${formatNumber(swapNights, 0)} overnight${Number(swapNights) === 1 ? '' : 's'}`,
+      detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots · ${swapRolloverCount.weightedRollovers} weighted swap days (${swapRolloverCount.standardRollovers} standard + ${swapRolloverCount.tripleRollovers} triple rollovers)`,
       tone: swapTotal > 0 ? 'profit' : swapTotal < 0 ? 'loss' : '',
     };
   })();
@@ -461,9 +513,18 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
               </>}
               {activeCalculator === 'swap' && <>
                 <div className="field-group"><span>Trade type</span><CalculatorDirectionToggle direction={direction} onChange={(value) => { setDirection(value); setHasCalculated(false); }} /></div>
-                <label className="field-group"><span>Broker swap rate · {direction} per lot / night ({accountCurrency})</span><input type="number" step="any" value={swapRate} onChange={updateValue(setSwapRate)} /></label>
+                <label className="field-group"><span>Broker swap rate · {direction} per lot / rollover ({accountCurrency})</span><input type="number" step="any" value={swapRate} onChange={updateValue(setSwapRate)} /></label>
                 <label className="field-group"><span>Lot size</span><input type="number" min="0" step="any" value={pnlLots} onChange={updateValue(setPnlLots)} /></label>
-                <label className="field-group"><span>Overnight holds</span><input type="number" min="0" step="1" value={swapNights} onChange={updateValue(setSwapNights)} /></label>
+                <label className="field-group"><span>Position open date</span><input type="date" value={swapOpenDate} onChange={updateValue(setSwapOpenDate)} /></label>
+                <label className="field-group"><span>Position close date</span><input type="date" min={swapOpenDate} value={swapCloseDate} onChange={updateValue(setSwapCloseDate)} /></label>
+                {instrument.kind !== 'forex' && (
+                  <label className="field-group">
+                    <span>Triple-swap weekday (broker setting)</span>
+                    <select value={tripleSwapWeekday} onChange={updateValue(setTripleSwapWeekday)}>
+                      {weekdays.slice(1, 6).map((weekday) => <option key={weekday} value={weekday}>{weekday}</option>)}
+                    </select>
+                  </label>
+                )}
               </>}
             </div>
 
@@ -486,7 +547,7 @@ const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout })
           <footer className="calculator-disclaimer">
             <strong>Disclaimer</strong>
             <p>Results are estimates for informational purposes only and may differ from actual outcomes because of market conditions, broker specifications, fees, and swap policies. Public market-data quotes may be delayed. Verify instrument terms with your broker.</p>
-            {activeCalculator === 'swap' && <p>Enter the swap rate from your broker. Positive or negative rates are supported; triple-swap nights are not applied automatically.</p>}
+            {activeCalculator === 'swap' && <p>Rollover dates are counted from the open date up to (but not including) the close date. Forex uses the standard Wednesday triple rollover and skips weekend rollover entries. For other instruments, select the broker’s triple-swap weekday; weekend rules vary by broker and are not included automatically.</p>}
             {instrument.kind === 'index' && <p>Index quotes come from Yahoo Finance. The calculator assumes one index unit per lot; confirm your broker’s index contract size before trading.</p>}
           </footer>
         </section>

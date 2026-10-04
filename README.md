@@ -164,7 +164,7 @@ Displays:
 Includes:
 - Margin estimates based on account balance, leverage, instrument, and lots
 - Per-account Forex, indices, commodities, and crypto leverage settings; margin calculations select the matching category automatically
-- Overnight swap estimates use the user-entered broker rate for the selected trade direction; triple-swap nights are not applied automatically
+- Overnight swap estimates use open/close dates, the user-entered broker rate, and a standard Wednesday triple rollover for Forex; other instruments allow a broker-specific triple-swap weekday
 - Risk-based lot sizing from balance, risk percentage, and stop distance
 - Profit/loss estimates from direction, entry, exit, and position size
 - Searchable Forex pairs, major indices, XAUUSD, and selected USD-priced crypto symbols
