@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently -k \"next dev\" \"npm run dev --workspace server\"",
     "build": "next build",
-    "start": "concurrently -k \"next start\" \"npm run start --workspace server\"",
+    "start": "next start",
     "test": "node --test src/utils/tradeImport.test.js"
   },
   "dependencies": {
