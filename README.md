@@ -5,6 +5,8 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 ## Features
 
 - User authentication and protected dashboard access
+- Email verification by one-time code during registration
+- Password recovery by email one-time code
 - Manage current trading accounts
 - Track planned accounts for future funding
 - Add, edit, and delete trades
@@ -99,9 +101,18 @@ NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/personal-trading-dashboard
 JWT_SECRET=your_secret_key
 CLIENT_URL=http://localhost:5173
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_FROM=Trading Dashboard <no-reply@example.com>
+SMTP_USER=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+# Optional: defaults to true on port 465 and false on other ports.
+SMTP_SECURE=false
+# Optional separate HMAC key for storing OTP hashes.
+OTP_SECRET=your_otp_signing_secret
 ```
 
-For deployment, set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, and the deployed frontend origin as `CLIENT_URL`. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Do not commit production secrets.
+SMTP credentials are required for registration verification and password recovery; SMTP connections use STARTTLS by default on non-465 ports. For deployment, set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, the deployed frontend origin as `CLIENT_URL`, and the SMTP settings for your email provider. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Do not commit production secrets.
 
 ## Run the Application
 
