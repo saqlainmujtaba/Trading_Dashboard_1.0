@@ -114,6 +114,7 @@ const AccountSection = ({
         <SharePanel
           items={[activeAccountsShareItem(accounts, formatCurrency)]}
           ownerName={ownerName}
+          showLabels
         />
       )}
 
@@ -266,6 +267,7 @@ const AccountSection = ({
                 ]}
                 ownerName={ownerName}
                 compact
+                showLabels
               />
               <button className="secondary-btn icon-action-button" type="button" aria-label="Edit account" title="Edit account" onClick={() => { setAccountForm(account); setEditingAccountId(account._id); setShowAccountForm(true); }}><ActionIcon name="edit" /></button>
               <button

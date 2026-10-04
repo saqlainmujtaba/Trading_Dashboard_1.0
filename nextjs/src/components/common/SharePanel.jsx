@@ -163,7 +163,7 @@ const drawShareImage = async (item, ownerName, shareUrl) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, className = '' }) => {
+const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, showLabels = false, className = '' }) => {
   const [dialogItem, setDialogItem] = useState(null);
   const [createdLink, setCreatedLink] = useState('');
   const [createdShareId, setCreatedShareId] = useState('');
@@ -283,23 +283,25 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, classNa
           <div className="share-action" key={`${item.type}-${item.title}`}>
             <button
               type="button"
-              className="secondary-btn icon-action-button"
+              className={`secondary-btn icon-action-button ${showLabels ? 'icon-action-button-labeled' : ''}`}
               onClick={() => openShare(item)}
               disabled={isCreating}
               aria-label={`Create a share link for ${target}`}
               title={`Create a share link for ${target}`}
             >
               <ActionIcon name="share" />
+              {showLabels && <span className="icon-action-label">Share link</span>}
             </button>
             <button
               type="button"
-              className="secondary-btn icon-action-button"
+              className={`secondary-btn icon-action-button ${showLabels ? 'icon-action-button-labeled' : ''}`}
               onClick={() => downloadShareImage(item)}
               disabled={isCreating}
               aria-label={`Download an image of ${target} with QR code`}
               title={`Download an image of ${target} with QR code`}
             >
               <ActionIcon name="image" />
+              {showLabels && <span className="icon-action-label">Image</span>}
             </button>
           </div>
         );
