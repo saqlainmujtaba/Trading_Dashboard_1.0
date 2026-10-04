@@ -22,7 +22,7 @@ test('history filters compose month, account, pair, and side', () => {
 
 test('individual trade snapshots include entry, exit, lot size, and P/L', () => {
   const snapshot = tradeShareItem(trades[0], formatCurrency).snapshot;
-  assert.deepEqual(snapshot.columns, ['Date', 'Account', 'Pair', 'Side', 'Entry', 'Exit', 'Lots', 'SL', 'TP', 'Risk', 'P/L']);
+  assert.deepEqual(snapshot.columns, ['Date', 'Account', 'Instrument', 'Direction', 'Entry price', 'Exit price', 'Lot size', 'Stop loss (SL)', 'Take profit (TP)', 'Risk', 'P/L']);
   assert.equal(snapshot.rows[0][4], '1.10000');
   assert.equal(snapshot.rows[0][5], '1.20000');
   assert.equal(snapshot.rows[0][6], '0.50');

@@ -4,6 +4,7 @@ import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import SharePanel from '../common/SharePanel';
+import ActionIcon from '../common/ActionIcon';
 import { accountShareItem, accountTradesShareItem, activeAccountsShareItem } from '../../utils/shareSnapshots';
 
 const accountSortOptions = [
@@ -266,10 +267,12 @@ const AccountSection = ({
                 ownerName={ownerName}
                 compact
               />
-              <button className="secondary-btn" type="button" onClick={() => { setAccountForm(account); setEditingAccountId(account._id); setShowAccountForm(true); }}>Edit</button>
+              <button className="secondary-btn icon-action-button" type="button" aria-label="Edit account" title="Edit account" onClick={() => { setAccountForm(account); setEditingAccountId(account._id); setShowAccountForm(true); }}><ActionIcon name="edit" /></button>
               <button
-                className="danger-btn"
+                className="danger-btn icon-action-button"
                 type="button"
+                aria-label="Delete account"
+                title="Delete account"
                 onClick={() => {
                   confirmDelete({
                     title: 'Delete account?',
@@ -278,7 +281,7 @@ const AccountSection = ({
                   });
                 }}
               >
-                Delete
+                <ActionIcon name="delete" />
               </button>
             </div>
           </article>

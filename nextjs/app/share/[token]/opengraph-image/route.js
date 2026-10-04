@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import QRCode from 'qrcode/lib/core/qrcode.js';
 
 export const runtime = 'edge';
 
@@ -12,17 +13,17 @@ export async function GET(request, { params }) {
   const rows = (share.snapshot.rows || []).slice(0, 4);
   const columns = share.snapshot.columns || [];
   const isTrade = rows.length === 1
-    && columns.some((column) => /^entry$/i.test(column))
-    && columns.some((column) => /^exit$/i.test(column));
+    && columns.some((column) => /^entry(?: price)?$/i.test(column))
+    && columns.some((column) => /^exit(?: price)?$/i.test(column));
   const tradeDetails = isTrade
     ? [
       ['Instrument', /pair|instrument/i],
       ['Direction', /side|direction/i],
-      ['Entry', /^entry$/i],
-      ['Exit', /^exit$/i],
-      ['Lots', /lots?/i],
-      ['Stop loss', /^sl$|stop loss/i],
-      ['Take profit', /^tp$|take profit/i],
+      ['Entry price', /^entry(?: price)?$/i],
+      ['Exit price', /^exit(?: price)?$/i],
+      ['Lot size', /lots?|lot size/i],
+      ['Stop loss (SL)', /^sl$|stop loss/i],
+      ['Take profit (TP)', /^tp$|take profit/i],
       ['Risk', /^risk/i],
       ['P/L', /p\/l|profit|loss/i],
     ].map(([label, expression]) => ({
@@ -35,6 +36,17 @@ export async function GET(request, { params }) {
     const amount = Number(String(value).replace(/[^\d.-]/g, ''));
     return amount < 0 ? '#f87171' : '#34d399';
   };
+  const shareUrl = new URL(`/share/${encodeURIComponent(token)}`, origin).toString();
+  const qr = QRCode.create(shareUrl, { errorCorrectionLevel: 'M' });
+  const qrSize = qr.modules.size + 8;
+  let qrPath = '';
+  for (let row = 0; row < qr.modules.size; row += 1) {
+    for (let column = 0; column < qr.modules.size; column += 1) {
+      if (qr.modules.data[row * qr.modules.size + column]) {
+        qrPath += `M${column + 4} ${row + 4}h1v1h-1z`;
+      }
+    }
+  }
 
   return new ImageResponse(
     (
@@ -47,7 +59,15 @@ export async function GET(request, { params }) {
         background: 'linear-gradient(135deg, #0b1220, #172b49)',
         color: 'white',
         fontFamily: 'Arial, sans-serif',
+        position: 'relative',
       }}>
+        <div style={{ position: 'absolute', top: 40, right: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 160, height: 180, padding: 8, borderRadius: 10, background: '#ffffff' }}>
+          <svg width="140" height="140" viewBox={`0 0 ${qrSize} ${qrSize}`} shapeRendering="crispEdges">
+            <rect x="0" y="0" width={qrSize} height={qrSize} fill="#ffffff" />
+            <path d={qrPath} fill="#0b1220" />
+          </svg>
+          <div style={{ marginTop: 4, color: '#0b1220', fontSize: 12, fontWeight: 700 }}>SCAN TO VIEW ONLINE</div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', color: '#60a5fa', fontSize: 22, fontWeight: 700 }}>
           PERSONAL TRADING DASHBOARD
         </div>
@@ -83,7 +103,7 @@ export async function GET(request, { params }) {
             <div key={index}>{row.slice(0, 4).map(String).join('  ·  ').slice(0, 96)}</div>
           ))}
         </div>
-        <div style={{ marginTop: 'auto', color: '#94a3b8', fontSize: 16 }}>Read-only shared snapshot</div>
+        <div style={{ marginTop: 'auto', color: '#94a3b8', fontSize: 16 }}>Scan the QR code to open this share online</div>
       </div>
     ),
     { width: 1200, height: 630 },

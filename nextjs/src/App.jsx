@@ -6,6 +6,7 @@ import DashboardLayout from './components/dashboard/DashboardLayout';
 import ProfilePage from './components/dashboard/ProfilePage';
 import TourGuide from './components/common/TourGuide';
 import SharePublicRoute from './components/common/SharePublicRoute';
+import { getWithTransientRetry } from './utils/retryApiGet';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
 const CalculatorPage = lazy(() => import('./components/dashboard/CalculatorPage'));
@@ -130,7 +131,7 @@ const App = () => {
 
     try {
       setDashboardError('');
-      const response = await api.get('/dashboard');
+      const response = await getWithTransientRetry((path) => api.get(path), '/dashboard');
       setDashboardData(response.data);
     } catch (error) {
       console.error('Failed to load dashboard data', error);
@@ -160,7 +161,7 @@ const App = () => {
       }
 
       try {
-        const response = await api.get('/auth/me');
+        const response = await getWithTransientRetry((path) => api.get(path), '/auth/me');
         setUser(response.data);
         localStorage.setItem('user', JSON.stringify(response.data));
         await loadDashboardData();

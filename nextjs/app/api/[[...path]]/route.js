@@ -26,8 +26,16 @@ const handleRequest = async (request) => {
       if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET must be set in production');
       }
-      await connectDB();
-      await cleanExpiredDemoAccounts();
+      try {
+        await connectDB();
+        await cleanExpiredDemoAccounts();
+      } catch (error) {
+        console.error('Vercel MongoDB connection failed:', error.message);
+        const message = error.message.includes('MONGO_URI')
+          ? error.message
+          : 'Database connection is temporarily unavailable. Please retry in a moment.';
+        return Response.json({ message }, { status: 503 });
+      }
     }
 
     const queryEntries = [...url.searchParams.entries()];
@@ -60,7 +68,7 @@ const handleRequest = async (request) => {
     console.error('Vercel API request failed:', error.message);
     const message = error.message.includes('MONGO_URI') || error.message.includes('JWT_SECRET')
       ? error.message
-      : 'API unavailable. Check the Vercel MongoDB settings and Atlas network access.';
+      : 'The API could not complete this request. Please try again.';
     return Response.json({ message }, { status: 500 });
   }
 };

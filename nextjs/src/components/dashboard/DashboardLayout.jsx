@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import api from '../../api';
 import Skeleton from '../common/Skeleton';
 import Sidebar from '../layout/Sidebar';
+import ActionIcon from '../common/ActionIcon';
 import SummaryCards from './SummaryCards';
 import AccountSection from './AccountSection';
 import PlannedSection from './PlannedSection';
@@ -512,13 +513,15 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
                 </button>
                 <button
                   type="button"
-                  className="danger-btn"
+                  className="danger-btn icon-action-button"
+                  aria-label="Confirm delete"
+                  title="Confirm delete"
                   onClick={() => {
                     deleteConfirm.onConfirm();
                     setDeleteConfirm(null);
                   }}
                 >
-                  Delete
+                  <ActionIcon name="delete" />
                 </button>
               </div>
             </div>

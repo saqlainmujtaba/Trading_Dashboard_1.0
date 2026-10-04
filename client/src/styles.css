@@ -434,6 +434,9 @@ body[data-theme='dark'] .status-paused {
 .share-panel-compact { display: flex; gap: 6px; margin: 0; }
 .share-action { display: flex; flex-wrap: wrap; gap: 6px; }
 .share-action .secondary-btn { white-space: nowrap; }
+.icon-action-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 8px; }
+.action-icon { display: block; width: 19px; height: 19px; flex: 0 0 auto; }
+.icon-action-button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .share-manage-trigger { border: 0; padding: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; }
 .share-dialog-backdrop { z-index: 100; }
 .share-dialog { width: min(620px, 100%); }

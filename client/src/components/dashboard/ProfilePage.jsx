@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import Sidebar from '../layout/Sidebar';
+import ActionIcon from '../common/ActionIcon';
 
 const defaultProfileData = {
   fullName: '',
@@ -192,8 +193,8 @@ const ProfilePage = ({ user, onLogout, theme, onToggleTheme }) => {
               <h2>{profile.fullName || user?.name || 'Trader Profile'}</h2>
               <p>{profile.tradingAlias || 'Trading alias not set'}</p>
             </div>
-            <button className="primary-btn" data-tour-target="profile" onClick={openProfileEditor}>
-              Edit profile
+            <button className="primary-btn icon-action-button" data-tour-target="profile" aria-label="Edit profile" title="Edit profile" onClick={openProfileEditor}>
+              <ActionIcon name="edit" />
             </button>
           </div>
 

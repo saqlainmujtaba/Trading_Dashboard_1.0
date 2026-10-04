@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import QRCode from 'qrcode';
 import api from '../../api';
+import ActionIcon from './ActionIcon';
 
-const drawShareImage = async (item, ownerName) => {
+const drawShareImage = async (item, ownerName, shareUrl) => {
   const canvas = document.createElement('canvas');
   canvas.width = 1200;
   canvas.height = 630;
@@ -19,6 +21,26 @@ const drawShareImage = async (item, ownerName) => {
   context.fillStyle = '#ffffff';
   context.font = '700 28px Segoe UI, sans-serif';
   context.fillText('PERSONAL TRADING DASHBOARD', 108, 96);
+
+  const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: 280,
+  });
+  const qrImage = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Could not prepare the share QR code.'));
+    image.src = qrDataUrl;
+  });
+  context.fillStyle = '#ffffff';
+  context.fillRect(1004, 54, 150, 170);
+  context.drawImage(qrImage, 1016, 62, 126, 126);
+  context.fillStyle = '#0b1220';
+  context.font = '700 12px Segoe UI, sans-serif';
+  context.textAlign = 'center';
+  context.fillText('SCAN TO VIEW ONLINE', 1079, 207);
+  context.textAlign = 'start';
 
   context.fillStyle = 'rgba(255,255,255,0.08)';
   context.fillRect(108, 122, 310, 82);
@@ -59,11 +81,11 @@ const drawShareImage = async (item, ownerName) => {
     const details = [
       ['Instrument', row[2]],
       ['Direction', row[3]],
-      ['Entry', row[4]],
-      ['Exit', row[5]],
-      ['Lots', row[6]],
-      ['Stop loss', row[7]],
-      ['Take profit', row[8]],
+      ['Entry price', row[4]],
+      ['Exit price', row[5]],
+      ['Lot size', row[6]],
+      ['Stop loss (SL)', row[7]],
+      ['Take profit (TP)', row[8]],
       ['Risk', row[9]],
       ['P/L', row[10]],
     ];
@@ -79,7 +101,7 @@ const drawShareImage = async (item, ownerName) => {
       const numericValue = Number(String(value ?? '—').replace(/[^\d.-]/g, ''));
       context.fillStyle = isPnl ? (numericValue < 0 ? '#f87171' : '#34d399') : '#e2e8f0';
       context.font = '600 17px Segoe UI, sans-serif';
-      context.fillText(String(value ?? '—').slice(0, 20), x + 100, y);
+      context.fillText(String(value ?? '—').slice(0, 20), x + 148, y);
     });
   } else {
     rows.slice(0, 4).forEach((row, index) => {
@@ -99,7 +121,7 @@ const drawShareImage = async (item, ownerName) => {
 
   context.fillStyle = '#94a3b8';
   context.font = '16px Segoe UI, sans-serif';
-  context.fillText('Read-only shared snapshot', 108, 592);
+  context.fillText('Scan the QR code to open this share online', 108, 592);
 
   const blob = await new Promise((resolve, reject) => canvas.toBlob(
     (result) => result ? resolve(result) : reject(new Error('Could not create the share image.')),
@@ -117,31 +139,70 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, classNa
   const [dialogItem, setDialogItem] = useState(null);
   const [createdLink, setCreatedLink] = useState('');
   const [createdShareId, setCreatedShareId] = useState('');
+  const [createdItemKey, setCreatedItemKey] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [message, setMessage] = useState('');
   const [shareLinks, setShareLinks] = useState([]);
   const [showManage, setShowManage] = useState(false);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
 
+  const createShareLink = async (item) => {
+    const response = await api.post('/shares', {
+      type: item.type,
+      title: item.title,
+      description: item.description || '',
+      snapshot: item.snapshot,
+    });
+    const shareOrigin = (import.meta.env.VITE_SHARE_BASE_URL || window.location.origin).replace(/\/+$/, '');
+    return {
+      id: response.data.share.id,
+      url: `${shareOrigin}/share/${response.data.token}`,
+    };
+  };
+
   const openShare = async (item) => {
     setDialogItem(item);
     setCreatedLink('');
     setCreatedShareId('');
+    setCreatedItemKey('');
     setMessage('');
     setIsCreating(true);
     try {
-      const response = await api.post('/shares', {
-        type: item.type,
-        title: item.title,
-        description: item.description || '',
-        snapshot: item.snapshot,
-      });
-      const shareOrigin = (import.meta.env.VITE_SHARE_BASE_URL || window.location.origin).replace(/\/+$/, '');
-      setCreatedLink(`${shareOrigin}/share/${response.data.token}`);
-      setCreatedShareId(response.data.share.id);
+      const created = await createShareLink(item);
+      setCreatedLink(created.url);
+      setCreatedShareId(created.id);
+      setCreatedItemKey(`${item.type}:${item.title}`);
     } catch (error) {
       console.error('Failed to create share link', error);
       setMessage(error.response?.data?.message || 'Could not create the share link.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const downloadShareImage = async (item) => {
+    setDialogItem(item);
+    setShowManage(false);
+    setMessage('');
+    const itemKey = `${item.type}:${item.title}`;
+    if (createdItemKey !== itemKey) {
+      setCreatedLink('');
+      setCreatedShareId('');
+      setCreatedItemKey('');
+    }
+    setIsCreating(true);
+    try {
+      const created = createdLink && createdShareId && createdItemKey === itemKey
+        ? { id: createdShareId, url: createdLink }
+        : await createShareLink(item);
+      setCreatedLink(created.url);
+      setCreatedShareId(created.id);
+      setCreatedItemKey(itemKey);
+      await drawShareImage(item, ownerName, created.url);
+      setMessage('Image downloaded. Scan its QR code to open this exact shared page.');
+    } catch (error) {
+      console.error('Failed to create a QR share image', error);
+      setMessage(error.response?.data?.message || error.message || 'Could not create the share image.');
     } finally {
       setIsCreating(false);
     }
@@ -168,6 +229,7 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, classNa
       if (createdShareId === id) {
         setCreatedLink('');
         setCreatedShareId('');
+        setCreatedItemKey('');
       }
       setMessage('Share link revoked.');
     } catch (error) {
@@ -190,15 +252,25 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, classNa
     <div className={`share-panel ${compact ? 'share-panel-compact' : ''} ${className}`}>
       {items.map((item) => (
         <div className="share-action" key={`${item.type}-${item.title}`}>
-          <button type="button" className="secondary-btn" onClick={() => openShare(item)} disabled={isCreating}>
-            Share {item.label || item.title}
+          <button
+            type="button"
+            className="secondary-btn icon-action-button"
+            onClick={() => openShare(item)}
+            disabled={isCreating}
+            aria-label={`Share ${item.label || item.title}`}
+            title={`Share ${item.label || item.title}`}
+          >
+            <ActionIcon name="share" />
           </button>
           <button
             type="button"
-            className="secondary-btn"
-            onClick={() => drawShareImage(item, ownerName).catch((error) => setMessage(error.message))}
+            className="secondary-btn icon-action-button"
+            onClick={() => downloadShareImage(item)}
+            disabled={isCreating}
+            aria-label={`Download ${item.label || item.title} image with QR code`}
+            title={`Download ${item.label || item.title} image with QR code`}
           >
-            Image{items.length > 1 ? ` ${item.label || ''}` : ''}
+            <ActionIcon name="image" />
           </button>
         </div>
       ))}
@@ -238,7 +310,16 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, classNa
             )}
             {message && <p className="share-message" role="status">{message}</p>}
             <div className="form-actions">
-              <button type="button" className="secondary-btn" onClick={() => drawShareImage(dialogItem, ownerName).catch((error) => setMessage(error.message))}>Download image</button>
+              <button
+                type="button"
+                className="secondary-btn icon-action-button"
+                onClick={() => downloadShareImage(dialogItem)}
+                disabled={isCreating}
+                aria-label={isCreating ? 'Preparing image' : 'Download image with QR code'}
+                title={isCreating ? 'Preparing image' : 'Download image with QR code'}
+              >
+                <ActionIcon name="image" />
+              </button>
               <button type="button" className="secondary-btn" onClick={loadShareLinks} disabled={isLoadingLinks}>Manage links</button>
               <button type="button" className="secondary-btn" onClick={() => { setDialogItem(null); setShowManage(false); }}>Close</button>
             </div>

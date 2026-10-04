@@ -1,4 +1,16 @@
-export const tradeColumns = ['Date', 'Account', 'Pair', 'Side', 'Entry', 'Exit', 'Lots', 'SL', 'TP', 'Risk', 'P/L'];
+export const tradeColumns = [
+  'Date',
+  'Account',
+  'Instrument',
+  'Direction',
+  'Entry price',
+  'Exit price',
+  'Lot size',
+  'Stop loss (SL)',
+  'Take profit (TP)',
+  'Risk',
+  'P/L',
+];
 
 export const filterTradeHistory = (trades, filters) => trades.filter((trade) => (
   (!filters.month || String(trade.date || '').slice(0, 7) === filters.month)

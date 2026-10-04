@@ -2,6 +2,7 @@ import { useState } from 'react';
 import FormField from '../common/FormField';
 import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
+import ActionIcon from '../common/ActionIcon';
 import { sortRows } from '../common/sortRows';
 
 const plannedSortOptions = [
@@ -141,10 +142,12 @@ const PlannedSection = ({
               <td><span className="priority-tag">{item.priority}</span></td>
               <td>{item.notes}</td>
               <td className="action-stack">
-                <button className="secondary-btn" type="button" onClick={() => { setPlannedForm(item); setEditingPlannedId(item._id); setShowPlannedForm(true); }}>Edit</button>
+                <button className="secondary-btn icon-action-button" type="button" aria-label="Edit planned account" title="Edit planned account" onClick={() => { setPlannedForm(item); setEditingPlannedId(item._id); setShowPlannedForm(true); }}><ActionIcon name="edit" /></button>
                 <button
-                  className="danger-btn"
+                  className="danger-btn icon-action-button"
                   type="button"
+                  aria-label="Delete planned account"
+                  title="Delete planned account"
                   onClick={() => {
                     confirmDelete({
                       title: 'Delete planned account?',
@@ -153,7 +156,7 @@ const PlannedSection = ({
                     });
                   }}
                 >
-                  Delete
+                  <ActionIcon name="delete" />
                 </button>
               </td>
             </tr>

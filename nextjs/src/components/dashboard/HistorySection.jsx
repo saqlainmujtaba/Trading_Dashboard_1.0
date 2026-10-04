@@ -5,6 +5,7 @@ import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
 import { parseTradeFile } from '../../utils/tradeImport';
 import SharePanel from '../common/SharePanel';
+import ActionIcon from '../common/ActionIcon';
 import { filterTradeHistory, payoutHistoryShareItem, payoutShareItem, tradeHistoryShareItem, tradeShareItem } from '../../utils/shareSnapshots';
 
 const tradeSortOptions = [
@@ -611,6 +612,8 @@ const HistorySection = ({
                     <button
                       className="secondary-btn"
                       type="button"
+                      aria-label="Edit trade"
+                      title="Edit trade"
                       onClick={() => {
                         const normalizedPair = String(trade.pair || '').toUpperCase().replace('/', '');
                         const isCustomPair = !tradePairOptions.includes(normalizedPair);
@@ -634,11 +637,13 @@ const HistorySection = ({
                         setShowTradeForm(true);
                       }}
                     >
-                      Edit
+                      <ActionIcon name="edit" />
                     </button>
                     <button
                       className="danger-btn"
                       type="button"
+                      aria-label="Delete trade"
+                      title="Delete trade"
                       onClick={() => {
                         confirmDelete({
                           title: 'Delete trade?',
@@ -647,7 +652,7 @@ const HistorySection = ({
                         });
                       }}
                     >
-                      Delete
+                      <ActionIcon name="delete" />
                     </button>
                   </td>
                 </tr>
@@ -882,17 +887,21 @@ const HistorySection = ({
                   <button
                     className="secondary-btn"
                     type="button"
+                    aria-label="Edit payout"
+                    title="Edit payout"
                     onClick={() => {
                       setPayoutForm(payout);
                       setEditingPayoutId(payout._id);
                       setShowPayoutForm(true);
                     }}
                   >
-                    Edit
+                    <ActionIcon name="edit" />
                   </button>
                   <button
                     className="danger-btn"
                     type="button"
+                    aria-label="Delete payout"
+                    title="Delete payout"
                     onClick={() => {
                       confirmDelete({
                         title: 'Delete payout?',
@@ -901,7 +910,7 @@ const HistorySection = ({
                       });
                     }}
                   >
-                    Delete
+                    <ActionIcon name="delete" />
                   </button>
                 </div>
               </div>
