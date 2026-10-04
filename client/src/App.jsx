@@ -279,6 +279,7 @@ const App = () => {
             )}>
               <CalculatorPage
                 user={user}
+                accounts={dashboardData.accounts}
                 onLogout={handleLogout}
                 theme={theme}
                 onToggleTheme={toggleTheme}

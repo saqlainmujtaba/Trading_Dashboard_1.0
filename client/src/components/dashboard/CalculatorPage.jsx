@@ -91,7 +91,7 @@ const formatNumber = (value, digits = 2) => new Intl.NumberFormat('en-US', {
   maximumFractionDigits: digits,
 }).format(Number(value) || 0);
 
-const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
+const CalculatorPage = ({ user, accounts = [], theme, onToggleTheme, onLogout }) => {
   const [instrumentSymbol, setInstrumentSymbol] = useState('EURUSD');
   const [instrumentSearch, setInstrumentSearch] = useState('EURUSD');
   const [accountCurrency, setAccountCurrency] = useState('USD');
@@ -102,9 +102,12 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const [quoteError, setQuoteError] = useState('');
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [balance, setBalance] = useState('10000');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [leverage, setLeverage] = useState('100');
   const [marginLots, setMarginLots] = useState('1');
   const [riskPercent, setRiskPercent] = useState('1');
+  const [riskAmountInput, setRiskAmountInput] = useState('100');
+  const [riskMode, setRiskMode] = useState('percent');
   const [stopDistance, setStopDistance] = useState('20');
   const [pnlLots, setPnlLots] = useState('1');
   const [direction, setDirection] = useState('Buy');
@@ -119,6 +122,7 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
     () => instruments.find((item) => item.symbol === instrumentSymbol) || instruments[0],
     [instrumentSymbol]
   );
+  const selectedAccount = accounts.find((account) => String(account._id || account.id) === selectedAccountId);
 
   useEffect(() => {
     const selected = instruments.find((item) => item.symbol === instrumentSearch.trim().toUpperCase());
@@ -181,7 +185,12 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const convertedBalance = parsePositiveNumber(balance);
   const currentLeverage = parsePositiveNumber(leverage);
   const currentMarginLots = parsePositiveNumber(marginLots);
-  const currentRiskPercent = parsePositiveNumber(riskPercent);
+  const currentRiskPercent = riskMode === 'percent'
+    ? parsePositiveNumber(riskPercent)
+    : convertedBalance > 0 ? parsePositiveNumber(riskAmountInput) / convertedBalance * 100 : 0;
+  const currentRiskAmount = riskMode === 'amount'
+    ? parsePositiveNumber(riskAmountInput)
+    : convertedBalance * currentRiskPercent / 100;
   const currentStopDistance = parsePositiveNumber(stopDistance);
   const currentPnlLots = parsePositiveNumber(pnlLots);
   const contractSize = instrument.contractSize;
@@ -190,19 +199,27 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const hasMarketData = quote !== null && hasConversions;
   const notionalPerLot = hasConversions
     ? instrument.kind === 'forex'
-      ? contractSize * baseToAccountRate
+      ? referencePrice * contractSize * quoteToAccountRate
       : referencePrice * contractSize * baseToAccountRate
     : 0;
   const marginRequired = hasMarketData && currentLeverage > 0
     ? notionalPerLot * currentMarginLots / currentLeverage
     : null;
   const remainingBalance = marginRequired === null ? null : convertedBalance - marginRequired;
+  const marginUsagePercent = marginRequired !== null && convertedBalance > 0
+    ? marginRequired / convertedBalance * 100
+    : null;
   const pipSize = instrument.kind === 'forex'
     ? (instrument.quote === 'JPY' ? 0.01 : 0.0001)
     : 1;
   const riskPerLot = hasConversions ? currentStopDistance * pipSize * contractSize * quoteToAccountRate : 0;
-  const riskAmount = convertedBalance * currentRiskPercent / 100;
-  const recommendedLots = hasMarketData && riskPerLot > 0 ? riskAmount / riskPerLot : null;
+  const recommendedLots = hasMarketData && riskPerLot > 0 ? currentRiskAmount / riskPerLot : null;
+  const recommendedLotsMargin = recommendedLots !== null && currentLeverage > 0
+    ? notionalPerLot * recommendedLots / currentLeverage
+    : null;
+  const recommendedLotsMarginPercent = recommendedLotsMargin !== null && convertedBalance > 0
+    ? recommendedLotsMargin / convertedBalance * 100
+    : null;
   const parsedEntryPrice = Number(entryPrice);
   const parsedExitPrice = Number(exitPrice);
   const effectiveEntryPrice = entryPrice !== '' && Number.isFinite(parsedEntryPrice) && parsedEntryPrice > 0
@@ -246,9 +263,12 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const resetCalculator = () => {
     setHasCalculated(false);
     setBalance('10000');
+    setSelectedAccountId('');
     setLeverage('100');
     setMarginLots('1');
     setRiskPercent('1');
+    setRiskAmountInput('100');
+    setRiskMode('percent');
     setStopDistance('20');
     setPnlLots('1');
     setDirection('Buy');
@@ -262,19 +282,33 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
     if (!hasCalculated) return null;
     if (activeCalculator === 'margin') {
       if (marginRequired === null) return { title: 'Margin unavailable', detail: 'Wait for a market quote to load.' };
-      return { title: `${formatNumber(marginRequired)} ${accountCurrency}`, detail: `Estimated margin · ${formatNumber(remainingBalance)} ${accountCurrency} balance after margin` };
+      const accountUsage = marginUsagePercent === null
+        ? 'Account margin usage unavailable'
+        : `${formatNumber(marginUsagePercent)}% of ${selectedAccount ? `${selectedAccount.name}’s` : 'the'} balance`;
+      return {
+        title: `${formatNumber(marginRequired)} ${accountCurrency}`,
+        detail: `${accountUsage} · ${formatNumber(remainingBalance)} ${accountCurrency} remaining`,
+      };
     }
     if (activeCalculator === 'profit-loss') {
       if (profitLoss === null) return { title: 'Enter entry and exit prices', detail: 'Add valid prices to estimate your potential P/L.' };
-      return { title: `${profitLoss >= 0 ? '+' : ''}${formatNumber(profitLoss)} ${accountCurrency}`, detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots` };
+      return {
+        title: `${profitLoss > 0 ? '+' : ''}${formatNumber(profitLoss)} ${accountCurrency}`,
+        detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots`,
+        tone: profitLoss > 0 ? 'profit' : profitLoss < 0 ? 'loss' : '',
+      };
     }
     if (activeCalculator === 'lot-size') {
       if (recommendedLots === null) return { title: 'Lot size unavailable', detail: 'Wait for a market quote and check your stop distance.' };
-      return { title: `${formatNumber(recommendedLots, 4)} lots`, detail: `${formatNumber(riskAmount)} ${accountCurrency} risk · ${formatNumber(currentRiskPercent, 2)}% of balance` };
+      return {
+        title: `${formatNumber(recommendedLots, 4)} lots`,
+        detail: `${formatNumber(currentRiskAmount)} ${accountCurrency} risk · ${formatNumber(recommendedLotsMargin)} ${accountCurrency} margin · ${recommendedLotsMarginPercent === null ? 'Account margin usage unavailable' : `${formatNumber(recommendedLotsMarginPercent)}% of ${selectedAccount ? `${selectedAccount.name}’s` : 'the'} balance`}`,
+      };
     }
     return {
       title: `${swapTotal >= 0 ? '+' : ''}${formatNumber(swapTotal)} ${accountCurrency}`,
       detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots · ${formatNumber(swapNights, 0)} overnight${Number(swapNights) === 1 ? '' : 's'}`,
+      tone: swapTotal > 0 ? 'profit' : swapTotal < 0 ? 'loss' : '',
     };
   })();
 
@@ -315,6 +349,25 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
 
             <div className="calculator-fields">
               <label className="field-group">
+                <span>Trading account</span>
+                <select value={selectedAccountId} onChange={(event) => {
+                  const accountId = event.target.value;
+                  setSelectedAccountId(accountId);
+                  const account = accounts.find((item) => String(item._id || item.id) === accountId);
+                  if (account) {
+                    setBalance(String(Number(account.balance) || 0));
+                    setAccountCurrency('USD');
+                  }
+                  setHasCalculated(false);
+                }}>
+                  <option value="">Manual balance</option>
+                  {accounts.map((account) => {
+                    const accountId = String(account._id || account.id);
+                    return <option key={accountId} value={accountId}>{account.name} · {account.propFirm} · {account.status || 'Unknown'}</option>;
+                  })}
+                </select>
+              </label>
+              <label className="field-group">
                 <span>Instrument</span>
                 <input list="calculator-instruments" value={instrumentSearch} onChange={selectInstrument}
                   placeholder="Search or select instrument" aria-label="Search or select a market instrument" />
@@ -324,12 +377,12 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
               </label>
               <div className="calculator-inline-controls">
                 <label className="field-group">
-                  <span>Account balance</span>
-                  <input type="number" min="0" step="any" value={balance} onChange={updateValue(setBalance)} />
+                  <span>{selectedAccount ? 'Selected account balance (USD)' : 'Account balance'}</span>
+                  <input type="number" min="0" step="any" value={balance} readOnly={Boolean(selectedAccount)} onChange={updateValue(setBalance)} />
                 </label>
                 <label className="field-group">
                   <span>Currency</span>
-                  <select value={accountCurrency} onChange={(event) => { setAccountCurrency(event.target.value); setHasCalculated(false); }}>
+                  <select value={accountCurrency} disabled={Boolean(selectedAccount)} onChange={(event) => { setAccountCurrency(event.target.value); setHasCalculated(false); }}>
                     {accountCurrencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                   </select>
                 </label>
@@ -346,7 +399,15 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
                 <CalculatorLotControl value={pnlLots} onChange={(value) => { setPnlLots(value); setHasCalculated(false); }} currentLots={currentPnlLots} />
               </>}
               {activeCalculator === 'lot-size' && <>
-                <label className="field-group"><span>Risk percentage (%)</span><input type="number" min="0" step="any" value={riskPercent} onChange={updateValue(setRiskPercent)} /></label>
+                <div className="calculator-risk-mode" role="group" aria-label="Risk input type">
+                  <button type="button" className={riskMode === 'percent' ? 'calculator-risk-mode-active' : ''}
+                    onClick={() => { setRiskMode('percent'); setHasCalculated(false); }}>Percentage</button>
+                  <button type="button" className={riskMode === 'amount' ? 'calculator-risk-mode-active' : ''}
+                    onClick={() => { setRiskMode('amount'); setHasCalculated(false); }}>Amount</button>
+                </div>
+                {riskMode === 'percent'
+                  ? <label className="field-group"><span>Risk percentage (%)</span><input type="number" min="0" step="any" value={riskPercent} onChange={updateValue(setRiskPercent)} /></label>
+                  : <label className="field-group"><span>Risk amount ({accountCurrency})</span><input type="number" min="0" step="any" value={riskAmountInput} onChange={updateValue(setRiskAmountInput)} /></label>}
                 <label className="field-group"><span>Stop distance ({instrument.kind === 'forex' ? 'pips' : `${quoteUnit} price`})</span><input type="number" min="0" step="any" value={stopDistance} onChange={updateValue(setStopDistance)} /></label>
               </>}
               {activeCalculator === 'swap' && <>
@@ -370,7 +431,7 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
 
           <aside className="calculator-result-panel" aria-live="polite">
             <span>{activeCalculator === 'profit-loss' ? 'Estimated Profit / Loss' : activeCalculator === 'lot-size' ? 'Suggested Lot Size' : activeCalculator === 'swap' ? 'Estimated Swap' : 'Estimated Margin'}</span>
-            {result ? <><strong>{result.title}</strong><small>{result.detail}</small></> : <small>Enter values and click Calculate</small>}
+            {result ? <><strong className={result.tone ? `calculator-result-${result.tone}` : ''}>{result.title}</strong><small>{result.detail}</small></> : <small>Enter values and click Calculate</small>}
           </aside>
 
           <footer className="calculator-disclaimer">
@@ -403,7 +464,7 @@ const CalculatorLotControl = ({ value, onChange, currentLots }) => (
 const CalculatorDirectionToggle = ({ direction, onChange }) => (
   <div className="calculator-direction-toggle">
     {['Buy', 'Sell'].map((tradeDirection) => (
-      <button type="button" key={tradeDirection} className={direction === tradeDirection ? 'calculator-direction-active' : ''}
+      <button type="button" key={tradeDirection} className={direction === tradeDirection ? `calculator-direction-active calculator-direction-${tradeDirection.toLowerCase()}-active` : ''}
         onClick={() => onChange(tradeDirection)}>
         {tradeDirection === 'Buy' ? '↑ Buy' : '↓ Sell'}
       </button>
