@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [areHomeSectionsOpen, setAreHomeSectionsOpen] = useState(false);
-  const [activeHomeSection, setActiveHomeSection] = useState('overview');
   const location = useLocation();
+  const isHome = location.pathname === '/' || location.pathname === '/dashboard';
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [areHomeSectionsOpen, setAreHomeSectionsOpen] = useState(isHome);
+  const [activeHomeSection, setActiveHomeSection] = useState('overview');
   let profileName = '';
 
   try {
@@ -17,12 +18,11 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
   const displayName = profileName || user?.name || 'Trader';
 
   const handleNavClick = () => setIsMobileMenuOpen(false);
-  const isHome = location.pathname === '/' || location.pathname === '/dashboard';
   const isSectionActive = (section) => isHome && activeHomeSection === section;
   const isPageActive = (path) => location.pathname === path;
 
   useEffect(() => {
-    if (!isHome) setAreHomeSectionsOpen(false);
+    setAreHomeSectionsOpen(isHome);
   }, [isHome]);
 
   useEffect(() => {
