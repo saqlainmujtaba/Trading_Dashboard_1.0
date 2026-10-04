@@ -82,6 +82,14 @@ const formatShortDate = (date) => new Date(`${date}T00:00:00`).toLocaleDateStrin
   day: 'numeric',
 });
 
+const shiftMonth = (month, offset) => {
+  const [year, monthNumber] = month.split('-').map(Number);
+  if (!year || !monthNumber) return month;
+
+  const shiftedDate = new Date(year, monthNumber - 1 + offset, 1);
+  return `${shiftedDate.getFullYear()}-${String(shiftedDate.getMonth() + 1).padStart(2, '0')}`;
+};
+
 const csvValue = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 
 const downloadFile = (content, type, filename) => {
@@ -300,6 +308,9 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
     setTradePage(1);
     setFilters(initialFilters);
   };
+  const changePayoutMonth = (offset) => {
+    setPayoutMonth((current) => shiftMonth(current || currentMonth, offset));
+  };
   const updateChartType = (chart, type) => setChartTypes((current) => ({ ...current, [chart]: type }));
 
   const exportCsv = () => {
@@ -406,10 +417,28 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
               <p className="eyebrow">Account performance</p>
               <h2>Monthly Payout Summary</h2>
             </div>
-            <label className="field-group monthly-payout-month">
-              <span>Month</span>
-              <input type="month" value={payoutMonth} onChange={(event) => setPayoutMonth(event.target.value)} />
-            </label>
+            <div className="monthly-payout-month-controls">
+              <button
+                className="secondary-btn"
+                type="button"
+                aria-label="Previous month"
+                onClick={() => changePayoutMonth(-1)}
+              >
+                Previous
+              </button>
+              <label className="field-group monthly-payout-month">
+                <span>Month</span>
+                <input type="month" value={payoutMonth} onChange={(event) => setPayoutMonth(event.target.value)} />
+              </label>
+              <button
+                className="secondary-btn"
+                type="button"
+                aria-label="Next month"
+                onClick={() => changePayoutMonth(1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
           <div className="monthly-payout-totals">
             <div><span>Total recorded payouts</span><strong>{formatCurrency(monthlyPayoutTotal)}</strong></div>
