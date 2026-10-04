@@ -110,6 +110,10 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const [direction, setDirection] = useState('Buy');
   const [entryPrice, setEntryPrice] = useState('');
   const [exitPrice, setExitPrice] = useState('');
+  const [activeCalculator, setActiveCalculator] = useState('profit-loss');
+  const [hasCalculated, setHasCalculated] = useState(false);
+  const [swapRate, setSwapRate] = useState('0');
+  const [swapNights, setSwapNights] = useState('1');
 
   const instrument = useMemo(
     () => instruments.find((item) => item.symbol === instrumentSymbol) || instruments[0],
@@ -201,12 +205,12 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const recommendedLots = hasMarketData && riskPerLot > 0 ? riskAmount / riskPerLot : null;
   const parsedEntryPrice = Number(entryPrice);
   const parsedExitPrice = Number(exitPrice);
-  const effectiveEntryPrice = entryPrice === ''
-    ? referencePrice
-    : Number.isFinite(parsedEntryPrice) && parsedEntryPrice > 0 ? parsedEntryPrice : null;
-  const effectiveExitPrice = exitPrice === ''
-    ? referencePrice
-    : Number.isFinite(parsedExitPrice) && parsedExitPrice > 0 ? parsedExitPrice : null;
+  const effectiveEntryPrice = entryPrice !== '' && Number.isFinite(parsedEntryPrice) && parsedEntryPrice > 0
+    ? parsedEntryPrice
+    : null;
+  const effectiveExitPrice = exitPrice !== '' && Number.isFinite(parsedExitPrice) && parsedExitPrice > 0
+    ? parsedExitPrice
+    : null;
   const directionMultiplier = direction === 'Sell' ? -1 : 1;
   const profitLoss = hasMarketData && effectiveEntryPrice !== null && effectiveExitPrice !== null
     ? (effectiveExitPrice - effectiveEntryPrice)
@@ -221,10 +225,16 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
   const quoteUpdated = rateDate
     ? `Quote reference: ${rateDate.slice(0, 10)}`
     : 'Quote reference from public market-data sources';
+  const swapTotal = Number(swapRate || 0) * currentPnlLots * parsePositiveNumber(swapNights);
+  const updateValue = (setter) => (event) => {
+    setter(event.target.value);
+    setHasCalculated(false);
+  };
 
   const selectInstrument = (event) => {
     const value = event.target.value.toUpperCase();
     setInstrumentSearch(value);
+    setHasCalculated(false);
     const selected = instruments.find((item) => item.symbol === value);
     if (selected) {
       setInstrumentSymbol(selected.symbol);
@@ -233,145 +243,172 @@ const CalculatorPage = ({ user, theme, onToggleTheme, onLogout }) => {
     }
   };
 
+  const resetCalculator = () => {
+    setHasCalculated(false);
+    setBalance('10000');
+    setLeverage('100');
+    setMarginLots('1');
+    setRiskPercent('1');
+    setStopDistance('20');
+    setPnlLots('1');
+    setDirection('Buy');
+    setEntryPrice('');
+    setExitPrice('');
+    setSwapRate('0');
+    setSwapNights('1');
+  };
+
+  const result = (() => {
+    if (!hasCalculated) return null;
+    if (activeCalculator === 'margin') {
+      if (marginRequired === null) return { title: 'Margin unavailable', detail: 'Wait for a market quote to load.' };
+      return { title: `${formatNumber(marginRequired)} ${accountCurrency}`, detail: `Estimated margin · ${formatNumber(remainingBalance)} ${accountCurrency} balance after margin` };
+    }
+    if (activeCalculator === 'profit-loss') {
+      if (profitLoss === null) return { title: 'Enter entry and exit prices', detail: 'Add valid prices to estimate your potential P/L.' };
+      return { title: `${profitLoss >= 0 ? '+' : ''}${formatNumber(profitLoss)} ${accountCurrency}`, detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots` };
+    }
+    if (activeCalculator === 'lot-size') {
+      if (recommendedLots === null) return { title: 'Lot size unavailable', detail: 'Wait for a market quote and check your stop distance.' };
+      return { title: `${formatNumber(recommendedLots, 4)} lots`, detail: `${formatNumber(riskAmount)} ${accountCurrency} risk · ${formatNumber(currentRiskPercent, 2)}% of balance` };
+    }
+    return {
+      title: `${swapTotal >= 0 ? '+' : ''}${formatNumber(swapTotal)} ${accountCurrency}`,
+      detail: `${direction} · ${formatNumber(currentPnlLots, 4)} lots · ${formatNumber(swapNights, 0)} overnight${Number(swapNights) === 1 ? '' : 's'}`,
+    };
+  })();
+
   return (
     <div className="app-shell">
       <Sidebar user={user} theme={theme} onToggleTheme={onToggleTheme} onLogout={onLogout} />
       <main className="content calculator-page">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Trading tools</p>
-            <h1>Trading Calculator</h1>
-          </div>
-          <div className="topbar-actions">
-            <Link className="secondary-btn" to="/">Back to dashboard</Link>
-          </div>
+        <header className="calculator-hero">
+          <Link className="calculator-back-link" to="/">Back to dashboard</Link>
+          <p className="eyebrow">Trading tools</p>
+          <h1>Plan every trade<br />Down to the last pip</h1>
+          <p>Margin, profit, lot size, and overnight swap. All in one place.</p>
         </header>
 
-        <section className="analytics-panel calculator-market-panel">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">Market quote</p>
-              <h2>Select instrument</h2>
+        <nav className="calculator-tabs" aria-label="Calculator type">
+          {[
+            ['margin', 'Margin'],
+            ['profit-loss', 'Profit/Loss'],
+            ['lot-size', 'Lot Size'],
+            ['swap', 'Swap'],
+          ].map(([key, label]) => (
+            <button key={key} type="button" className={activeCalculator === key ? 'calculator-tab calculator-tab-active' : 'calculator-tab'}
+              onClick={() => { setActiveCalculator(key); setHasCalculated(false); }} aria-pressed={activeCalculator === key}>
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <section className="calculator-workspace">
+          <div className="calculator-form-column">
+            <h2>{activeCalculator === 'margin' ? 'Margin' : activeCalculator === 'profit-loss' ? 'Profit / Loss' : activeCalculator === 'lot-size' ? 'Lot Size' : 'Overnight Swap'}</h2>
+            <p className="calculator-description">
+              {activeCalculator === 'margin' && 'Estimate the margin needed to open your position.'}
+              {activeCalculator === 'profit-loss' && 'See your potential P/L before you place the trade.'}
+              {activeCalculator === 'lot-size' && 'Calculate position size from balance, risk, and stop distance.'}
+              {activeCalculator === 'swap' && 'Estimate overnight financing using your broker’s swap rate.'}
+            </p>
+
+            <div className="calculator-fields">
+              <label className="field-group">
+                <span>Instrument</span>
+                <input list="calculator-instruments" value={instrumentSearch} onChange={selectInstrument}
+                  placeholder="Search or select instrument" aria-label="Search or select a market instrument" />
+                <datalist id="calculator-instruments">
+                  {instruments.map((item) => <option key={item.symbol} value={item.symbol}>{item.name}</option>)}
+                </datalist>
+              </label>
+              <div className="calculator-inline-controls">
+                <label className="field-group">
+                  <span>Account balance</span>
+                  <input type="number" min="0" step="any" value={balance} onChange={updateValue(setBalance)} />
+                </label>
+                <label className="field-group">
+                  <span>Currency</span>
+                  <select value={accountCurrency} onChange={(event) => { setAccountCurrency(event.target.value); setHasCalculated(false); }}>
+                    {accountCurrencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              {activeCalculator === 'margin' && <>
+                <label className="field-group"><span>Leverage (1:X)</span><input type="number" min="1" step="1" value={leverage} onChange={updateValue(setLeverage)} /></label>
+                <CalculatorLotControl value={marginLots} onChange={(value) => { setMarginLots(value); setHasCalculated(false); }} currentLots={currentMarginLots} />
+              </>}
+              {activeCalculator === 'profit-loss' && <>
+                <div className="field-group"><span>Trade type</span><CalculatorDirectionToggle direction={direction} onChange={(value) => { setDirection(value); setHasCalculated(false); }} /></div>
+                <label className="field-group"><span>Entry price ({quoteUnit})</span><input type="number" min="0" step="any" value={entryPrice} placeholder={quote ? String(quote) : 'Enter entry price'} onChange={updateValue(setEntryPrice)} /></label>
+                <label className="field-group"><span>Exit price ({quoteUnit})</span><input type="number" min="0" step="any" value={exitPrice} placeholder={quote ? String(quote) : 'Enter exit price'} onChange={updateValue(setExitPrice)} /></label>
+                <CalculatorLotControl value={pnlLots} onChange={(value) => { setPnlLots(value); setHasCalculated(false); }} currentLots={currentPnlLots} />
+              </>}
+              {activeCalculator === 'lot-size' && <>
+                <label className="field-group"><span>Risk percentage (%)</span><input type="number" min="0" step="any" value={riskPercent} onChange={updateValue(setRiskPercent)} /></label>
+                <label className="field-group"><span>Stop distance ({instrument.kind === 'forex' ? 'pips' : `${quoteUnit} price`})</span><input type="number" min="0" step="any" value={stopDistance} onChange={updateValue(setStopDistance)} /></label>
+              </>}
+              {activeCalculator === 'swap' && <>
+                <div className="field-group"><span>Trade type</span><CalculatorDirectionToggle direction={direction} onChange={(value) => { setDirection(value); setHasCalculated(false); }} /></div>
+                <label className="field-group"><span>Broker swap rate · {direction} per lot / night ({accountCurrency})</span><input type="number" step="any" value={swapRate} onChange={updateValue(setSwapRate)} /></label>
+                <label className="field-group"><span>Lot size</span><input type="number" min="0" step="any" value={pnlLots} onChange={updateValue(setPnlLots)} /></label>
+                <label className="field-group"><span>Overnight holds</span><input type="number" min="0" step="1" value={swapNights} onChange={updateValue(setSwapNights)} /></label>
+              </>}
             </div>
-            {quote && <span className="section-tag">{isLoadingQuote ? 'Updating quote' : 'Quote available'}</span>}
+
+            <div className="calculator-market-status" aria-live="polite">
+              <span>{instrument.symbol}: {isLoadingQuote ? 'fetching quote...' : quote ? `${formatNumber(quote, quoteDigits)} ${quoteUnit}` : 'quote unavailable'}</span>
+              <span>{quoteUpdated}</span>
+            </div>
+            {quoteError && <p className="calculator-quote-error" role="alert">{quoteError}</p>}
+            <div className="calculator-actions">
+              <button type="button" className="calculator-reset-btn" onClick={resetCalculator}>Reset</button>
+              <button type="button" className="calculator-calculate-btn" onClick={() => setHasCalculated(true)}>Calculate</button>
+            </div>
           </div>
-          <div className="calculator-market-controls">
-            <label className="field-group">
-              <span>Search or select pair / symbol</span>
-              <input
-                list="calculator-instruments"
-                value={instrumentSearch}
-                onChange={selectInstrument}
-                placeholder="Search EURUSD, XAUUSD, BTCUSD..."
-                aria-label="Search or select a market instrument"
-              />
-              <datalist id="calculator-instruments">
-                {instruments.map((item) => (
-                  <option key={item.symbol} value={item.symbol}>{item.name}</option>
-                ))}
-              </datalist>
-            </label>
-            <label className="field-group">
-              <span>Account currency</span>
-              <select value={accountCurrency} onChange={(event) => setAccountCurrency(event.target.value)}>
-                {accountCurrencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
-              </select>
-            </label>
-            <div className="calculator-live-quote" aria-live="polite">
-              <span>{instrument.symbol} rate</span>
-              <strong>{isLoadingQuote ? 'Fetching...' : quote ? `${formatNumber(quote, quoteDigits)} ${quoteUnit}` : 'Unavailable'}</strong>
-              <small>{quoteUpdated}</small>
-            </div>
-          </div>
-          {quoteError && <p className="error-text" role="alert">{quoteError}</p>}
-          <p className="muted">Forex rates use Frankfurter reference data; gold and crypto quotes use public no-key APIs. Rates may be delayed and are for estimates only.</p>
-        </section>
 
-        <section className="calculator-grid" aria-label="Trading calculators">
-          <article className="analytics-panel calculator-card">
-            <p className="eyebrow">Buying power</p>
-            <h2>Margin Calculator</h2>
-            <p className="muted">Estimate margin required from balance, leverage, and position size.</p>
-            <div className="calculator-fields">
-              <label className="field-group">
-                <span>Account balance ({accountCurrency})</span>
-                <input type="number" min="0" step="any" value={balance} onChange={(event) => setBalance(event.target.value)} />
-              </label>
-              <label className="field-group">
-                <span>Leverage (1:X)</span>
-                <input type="number" min="1" step="1" value={leverage} onChange={(event) => setLeverage(event.target.value)} />
-              </label>
-              <label className="field-group">
-                <span>Position size (lots)</span>
-                <input type="number" min="0" step="any" value={marginLots} onChange={(event) => setMarginLots(event.target.value)} />
-              </label>
-            </div>
-            <div className="calculator-result" aria-live="polite">
-              <div><span>Estimated margin required</span><strong>{marginRequired === null ? (isLoadingQuote ? 'Fetching quote...' : 'Unavailable') : `${formatNumber(marginRequired)} ${accountCurrency}`}</strong></div>
-              <div><span>Balance after margin</span><strong className={remainingBalance !== null && remainingBalance < 0 ? 'negative-number' : ''}>{remainingBalance === null ? (isLoadingQuote ? 'Fetching quote...' : 'Unavailable') : `${formatNumber(remainingBalance)} ${accountCurrency}`}</strong></div>
-            </div>
-            <p className="muted">Contract size: {formatNumber(contractSize, 0)} {instrument.kind === 'gold' ? 'troy oz per lot' : instrument.kind === 'crypto' ? 'coin per lot' : 'base currency units per lot'}.</p>
-          </article>
+          <aside className="calculator-result-panel" aria-live="polite">
+            <span>{activeCalculator === 'profit-loss' ? 'Estimated Profit / Loss' : activeCalculator === 'lot-size' ? 'Suggested Lot Size' : activeCalculator === 'swap' ? 'Estimated Swap' : 'Estimated Margin'}</span>
+            {result ? <><strong>{result.title}</strong><small>{result.detail}</small></> : <small>Enter values and click Calculate</small>}
+          </aside>
 
-          <article className="analytics-panel calculator-card">
-            <p className="eyebrow">Risk management</p>
-            <h2>Lot Size Calculator</h2>
-            <p className="muted">Size the position to match your balance, risk percentage, and stop distance.</p>
-            <div className="calculator-fields">
-              <label className="field-group">
-                <span>Account balance ({accountCurrency})</span>
-                <input type="number" min="0" step="any" value={balance} onChange={(event) => setBalance(event.target.value)} />
-              </label>
-              <label className="field-group">
-                <span>Risk (%)</span>
-                <input type="number" min="0" step="any" value={riskPercent} onChange={(event) => setRiskPercent(event.target.value)} />
-              </label>
-              <label className="field-group">
-                <span>Stop distance ({instrument.kind === 'forex' ? 'pips' : `${quoteUnit} price`})</span>
-                <input type="number" min="0" step="any" value={stopDistance} onChange={(event) => setStopDistance(event.target.value)} />
-              </label>
-            </div>
-            <div className="calculator-result" aria-live="polite">
-              <div><span>Cash risk</span><strong>{formatNumber(riskAmount)} {accountCurrency}</strong></div>
-              <div><span>Suggested position size</span><strong>{recommendedLots === null ? (isLoadingQuote ? 'Fetching quote...' : 'Unavailable') : `${formatNumber(recommendedLots, 4)} lots`}</strong></div>
-            </div>
-            <p className="muted">{instrument.kind === 'forex' ? `Pip size: ${pipSize} ${quoteUnit}.` : `Contract convention: ${formatNumber(contractSize, 0)} ${instrument.kind === 'gold' ? 'oz' : 'coin'} per lot.`}</p>
-          </article>
-
-          <article className="analytics-panel calculator-card">
-            <p className="eyebrow">Trade outcome</p>
-            <h2>Profit / Loss Calculator</h2>
-            <p className="muted">Estimate the trade result using entry, exit, direction, and position size.</p>
-            <div className="calculator-fields">
-              <label className="field-group">
-                <span>Direction</span>
-                <select value={direction} onChange={(event) => setDirection(event.target.value)}>
-                  <option value="Buy">Buy</option>
-                  <option value="Sell">Sell</option>
-                </select>
-              </label>
-              <label className="field-group">
-                <span>Position size (lots)</span>
-                <input type="number" min="0" step="any" value={pnlLots} onChange={(event) => setPnlLots(event.target.value)} />
-              </label>
-              <label className="field-group">
-                <span>Entry price ({quoteUnit})</span>
-                <input type="number" min="0" step="any" value={entryPrice} placeholder={quote ? String(quote) : 'Enter price'} onChange={(event) => setEntryPrice(event.target.value)} />
-              </label>
-              <label className="field-group">
-                <span>Exit price ({quoteUnit})</span>
-                <input type="number" min="0" step="any" value={exitPrice} placeholder={quote ? String(quote) : 'Enter price'} onChange={(event) => setExitPrice(event.target.value)} />
-              </label>
-            </div>
-            <div className="calculator-result" aria-live="polite">
-              <div><span>Estimated profit / loss</span><strong className={profitLoss !== null && profitLoss >= 0 ? 'positive-number' : 'negative-number'}>{profitLoss === null ? (isLoadingQuote ? 'Fetching quote...' : 'Unavailable') : `${formatNumber(profitLoss)} ${accountCurrency}`}</strong></div>
-              <div><span>Converted from</span><strong>{quoteToAccountRate === null ? 'Conversion unavailable' : `${quoteUnit} → ${accountCurrency} (${formatNumber(quoteToAccountRate, 5)})`}</strong></div>
-            </div>
-          </article>
+          <footer className="calculator-disclaimer">
+            <strong>Disclaimer</strong>
+            <p>Results are estimates for informational purposes only and may differ from actual outcomes because of market conditions, broker specifications, fees, and swap policies. Public market-data quotes may be delayed. Verify instrument terms with your broker.</p>
+            {activeCalculator === 'swap' && <p>Enter the swap rate from your broker. Positive or negative rates are supported; triple-swap nights are not applied automatically.</p>}
+          </footer>
         </section>
       </main>
     </div>
   );
 };
+
+const CalculatorLotControl = ({ value, onChange, currentLots }) => (
+  <div className="calculator-lot-control">
+    <label className="field-group">
+      <span>Lot size</span>
+      <div className="calculator-stepper">
+        <button type="button" onClick={() => onChange(String(Math.max(0.01, currentLots - 0.01)))} aria-label="Decrease lot size">−</button>
+        <input type="number" min="0.01" step="0.01" value={value} onChange={(event) => onChange(event.target.value)} />
+        <button type="button" onClick={() => onChange(String(currentLots + 0.01))} aria-label="Increase lot size">+</button>
+      </div>
+    </label>
+    <div className="calculator-presets" aria-label="Lot size presets">
+      {[0.01, 0.1, 0.5, 1, 2].map((lots) => <button key={lots} type="button" onClick={() => onChange(String(lots))}>{lots}</button>)}
+    </div>
+  </div>
+);
+
+const CalculatorDirectionToggle = ({ direction, onChange }) => (
+  <div className="calculator-direction-toggle">
+    {['Buy', 'Sell'].map((tradeDirection) => (
+      <button type="button" key={tradeDirection} className={direction === tradeDirection ? 'calculator-direction-active' : ''}
+        onClick={() => onChange(tradeDirection)}>
+        {tradeDirection === 'Buy' ? '↑ Buy' : '↓ Sell'}
+      </button>
+    ))}
+  </div>
+);
 
 export default CalculatorPage;

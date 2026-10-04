@@ -15,7 +15,7 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - Payout management tied to existing accounts
 - Portfolio overview by prop firm
 - Trade analytics with cumulative P/L and account performance charts
-- Trading calculators for estimated margin, risk-based lot sizing, and trade profit/loss
+- Trading calculators for estimated margin, risk-based lot sizing, trade profit/loss, and overnight swap
 - Searchable Forex, gold, and crypto symbols with automatic public quote and currency conversion lookup
 - Trade filters for search, date range, account, pair, direction, and result
 - CSV and PDF exports for the currently filtered trade report
@@ -163,6 +163,7 @@ Displays:
 ### Calculator Page
 Includes:
 - Margin estimates based on account balance, leverage, instrument, and lots
+- Overnight swap estimates use the user-entered broker rate for the selected trade direction; triple-swap nights are not applied automatically
 - Risk-based lot sizing from balance, risk percentage, and stop distance
 - Profit/loss estimates from direction, entry, exit, and position size
 - Searchable Forex pairs, XAUUSD, and selected USD-priced crypto symbols
