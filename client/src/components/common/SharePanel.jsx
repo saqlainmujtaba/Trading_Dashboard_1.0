@@ -175,13 +175,17 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, showLab
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
 
   const createShareLink = async (item) => {
+    const configuredShareOrigin = import.meta.env.VITE_SHARE_BASE_URL?.trim();
+    if (import.meta.env.PROD && !configuredShareOrigin) {
+      throw new Error('Set VITE_SHARE_BASE_URL to your deployed Next.js site so shared links include WhatsApp previews.');
+    }
+    const shareOrigin = (configuredShareOrigin || window.location.origin).replace(/\/+$/, '');
     const response = await api.post('/shares', {
       type: item.type,
       title: item.title,
       description: item.description || '',
       snapshot: item.snapshot,
     });
-    const shareOrigin = (import.meta.env.VITE_SHARE_BASE_URL || window.location.origin).replace(/\/+$/, '');
     return {
       id: response.data.share.id,
       url: `${shareOrigin}/share/${response.data.token}`,

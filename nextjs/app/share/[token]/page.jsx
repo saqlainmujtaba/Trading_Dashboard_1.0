@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import connectDB from '../../../server/src/config/db.js';
 import { findShareForPreview } from '../../../server/src/controllers/shareController.js';
 import SharePublicView from '../../../src/components/common/SharePublicView';
@@ -15,24 +16,36 @@ export async function generateMetadata({ params }) {
   const share = await getShare(token);
   if (!share) return { title: 'Share unavailable | Trading Dashboard' };
 
+  const requestHeaders = await headers();
+  const forwardedHost = requestHeaders.get('x-forwarded-host')?.split(',')[0].trim();
+  const host = forwardedHost || requestHeaders.get('host');
+  const forwardedProtocol = requestHeaders.get('x-forwarded-proto')?.split(',')[0].trim();
+  const protocol = forwardedProtocol || (host?.startsWith('localhost') ? 'http' : 'https');
   const origin = process.env.NEXT_PUBLIC_SITE_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    || (host ? `${protocol}://${host}` : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000');
   const image = new URL(`/share/${encodeURIComponent(token)}/opengraph-image`, origin);
+  const pageUrl = new URL(`/share/${encodeURIComponent(token)}`, origin);
+  const title = `${share.title} — shared by ${share.ownerName} | Trading Dashboard`;
+  const description = `${share.description || 'A read-only trading summary shared from Trading Dashboard.'} · Shared by ${share.ownerName}`;
 
   return {
-    title: `${share.title} — shared by ${share.ownerName} | Trading Dashboard`,
-    description: `${share.description || 'A read-only trading summary shared from Trading Dashboard.'} · Shared by ${share.ownerName}`,
+    title,
+    description,
+    alternates: { canonical: pageUrl },
     openGraph: {
-      title: `${share.title} — shared by ${share.ownerName}`,
-      description: `${share.description || 'A read-only trading summary shared from Trading Dashboard.'} · Shared by ${share.ownerName}`,
+      title,
+      description,
       type: 'article',
       siteName: 'Trading Dashboard',
+      url: pageUrl,
       images: [{ url: image, width: 1200, height: 630, alt: share.title }],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${share.title} — shared by ${share.ownerName}`,
-      description: `${share.description || 'A read-only trading summary shared from Trading Dashboard.'} · Shared by ${share.ownerName}`,
+      title,
+      description,
       images: [image],
     },
   };

@@ -46,7 +46,7 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 
 A standalone Next.js version of the dashboard, including its own copy of the Express API, is available in [`nextjs/`](./nextjs/README.md). The existing Vite app and root npm scripts are unchanged. Follow the [Next.js setup instructions](./nextjs/README.md) to install and run the separate project.
 
-For link previews when creating shares from the Vite client, set `VITE_SHARE_BASE_URL` to the deployed Next.js origin. Both deployments must use the same MongoDB database; the Next.js share page supplies social preview metadata.
+For link previews when creating shares from the Vite client, set the Vite build environment variable `VITE_SHARE_BASE_URL` to the deployed Next.js origin (for example, `https://your-dashboard.vercel.app`) and rebuild/redeploy the Vite client. In production, the Vite client refuses to create a share link without this setting rather than generating a link to its client-rendered route, which social crawlers cannot read. Both deployments must use the same MongoDB database; the Next.js share page supplies server-rendered social metadata and its Open Graph image.
 
 ## Project Structure
 
