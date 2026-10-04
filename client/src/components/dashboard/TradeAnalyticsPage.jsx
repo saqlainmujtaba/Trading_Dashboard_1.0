@@ -102,6 +102,8 @@ const downloadFile = (content, type, filename) => {
 };
 
 const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleTheme }) => {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
   const [tradePageSize, setTradePageSize] = useState(10);
   const [tradePage, setTradePage] = useState(1);
@@ -116,10 +118,35 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
     plannedFunding: 'bar',
   });
   const [filters, setFilters] = useState(initialFilters);
+  const [payoutMonth, setPayoutMonth] = useState(currentMonth);
   const accounts = dashboardData?.accounts || [];
   const payouts = dashboardData?.payouts || [];
   const plannedAccounts = dashboardData?.plannedAccounts || [];
   const allTrades = dashboardData?.trades || [];
+  const monthlyPayoutsByActiveAccount = useMemo(() => {
+    const activeAccounts = accounts.filter((account) => account.status === 'Active');
+    const totals = new Map(activeAccounts.map((account) => [account.name, {
+      name: account.name,
+      fundedAmount: Number(account.fundedAmount) || 0,
+      payoutAmount: 0,
+    }]));
+
+    payouts.forEach((payout) => {
+      if (payout.date?.slice(0, 7) !== payoutMonth) return;
+      const accountTotal = totals.get(payout.account);
+      if (accountTotal) accountTotal.payoutAmount += Number(payout.amount) || 0;
+    });
+
+    return [...totals.values()].map((account) => ({
+      ...account,
+      returnPercent: account.fundedAmount > 0
+        ? account.payoutAmount / account.fundedAmount * 100
+        : null,
+    }));
+  }, [accounts, payouts, payoutMonth]);
+  const monthlyPayoutTotal = monthlyPayoutsByActiveAccount.reduce((sum, account) => sum + account.payoutAmount, 0);
+  const monthlyFundedTotal = monthlyPayoutsByActiveAccount.reduce((sum, account) => sum + account.fundedAmount, 0);
+  const monthlyPayoutReturn = monthlyFundedTotal > 0 ? monthlyPayoutTotal / monthlyFundedTotal * 100 : null;
   const accountOptions = [...new Set(allTrades.map((trade) => trade.account).filter(Boolean))].sort();
   const pairOptions = [...new Set(allTrades.map((trade) => trade.pair).filter(Boolean))].sort();
 
@@ -372,6 +399,42 @@ const TradeAnalyticsPage = ({ user, dashboardData, onLogout, theme, onToggleThem
             </strong>
           </div>
         </div>
+
+        <section className="analytics-panel monthly-payout-panel">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Account performance</p>
+              <h2>Monthly Payout Summary</h2>
+            </div>
+            <label className="field-group monthly-payout-month">
+              <span>Month</span>
+              <input type="month" value={payoutMonth} onChange={(event) => setPayoutMonth(event.target.value)} />
+            </label>
+          </div>
+          <div className="monthly-payout-totals">
+            <div><span>Total recorded payouts</span><strong>{formatCurrency(monthlyPayoutTotal)}</strong></div>
+            <div><span>Return on active funded amount</span><strong>{monthlyPayoutReturn === null ? '—' : `${monthlyPayoutReturn.toFixed(2)}%`}</strong></div>
+          </div>
+          <p className="muted">Payout return is calculated as recorded payouts in the selected month divided by each currently active account's funded amount.</p>
+          {monthlyPayoutsByActiveAccount.length ? (
+            <div className="monthly-payout-list">
+              <div className="monthly-payout-item monthly-payout-list-head" aria-hidden="true">
+                <span>Active account</span>
+                <span>Recorded payouts</span>
+                <strong>Return</strong>
+              </div>
+              {monthlyPayoutsByActiveAccount.map((account) => (
+                <div className="monthly-payout-item" key={account.name}>
+                  <span>{account.name}</span>
+                  <span>{formatCurrency(account.payoutAmount)} payout</span>
+                  <strong>{account.returnPercent === null ? '—' : `${account.returnPercent.toFixed(2)}%`}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">No active accounts to summarize for this month.</p>
+          )}
+        </section>
 
         <section className="analytics-panel filter-panel" aria-label="Trade filters">
           <div className="section-head">

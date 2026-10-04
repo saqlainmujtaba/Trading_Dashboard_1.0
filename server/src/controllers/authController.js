@@ -27,6 +27,7 @@ const profileFields = [
   'bio',
   'goals',
   'customFields',
+  'monthlyReturnPercent',
 ];
 
 const findUserById = async (id) => {
@@ -418,6 +419,14 @@ export const updateTraderProfile = async (req, res) => {
         .filter((field) => Object.hasOwn(req.body || {}, field))
         .map((field) => [field, req.body[field]])
     );
+
+    if (Object.hasOwn(updates, 'monthlyReturnPercent')) {
+      const monthlyReturnPercent = Number(updates.monthlyReturnPercent);
+      if (!Number.isFinite(monthlyReturnPercent) || monthlyReturnPercent < -100) {
+        return res.status(400).json({ message: 'Monthly return must be a valid percentage of -100 or higher.' });
+      }
+      updates.monthlyReturnPercent = monthlyReturnPercent;
+    }
 
     if (Array.isArray(updates.customFields)) {
       updates.customFields = updates.customFields

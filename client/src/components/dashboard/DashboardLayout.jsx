@@ -101,6 +101,34 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const [showPayoutForm, setShowPayoutForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [monthlyReturnPercent, setMonthlyReturnPercent] = useState('0');
+  const [isLoadingMonthlyReturn, setIsLoadingMonthlyReturn] = useState(true);
+  const [isSavingMonthlyReturn, setIsSavingMonthlyReturn] = useState(false);
+  const [monthlyReturnMessage, setMonthlyReturnMessage] = useState('');
+  const [monthlyReturnError, setMonthlyReturnError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMonthlyReturn = async () => {
+      setIsLoadingMonthlyReturn(true);
+      setMonthlyReturnError('');
+      try {
+        const response = await api.get('/auth/profile');
+        if (isMounted) {
+          const savedPercentage = Number(response.data.monthlyReturnPercent ?? 0);
+          setMonthlyReturnPercent(String(Number.isFinite(savedPercentage) ? savedPercentage : 0));
+        }
+      } catch (error) {
+        console.error('Failed to load monthly return setting', error);
+        if (isMounted) setMonthlyReturnError('Could not load the saved monthly return setting.');
+      } finally {
+        if (isMounted) setIsLoadingMonthlyReturn(false);
+      }
+    };
+
+    loadMonthlyReturn();
+    return () => { isMounted = false; };
+  }, [user?._id]);
 
   useEffect(() => {
     const hash = location.hash.replace('#', '');
@@ -153,6 +181,30 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   }, [activeAccounts, monthlyReturnPercent]);
   const monthlyReturnTotal = monthlyReturnByAccount.reduce((sum, account) => sum + account.monthlyReturn, 0);
   const projectedActiveFunding = monthlyReturnByAccount.reduce((sum, account) => sum + account.projectedFunding, 0);
+
+  const saveMonthlyReturn = async () => {
+    const percentage = Number(monthlyReturnPercent);
+    if (!Number.isFinite(percentage) || percentage < -100) {
+      setMonthlyReturnError('Enter a valid monthly return percentage of -100 or higher.');
+      setMonthlyReturnMessage('');
+      return;
+    }
+
+    setIsSavingMonthlyReturn(true);
+    setMonthlyReturnError('');
+    setMonthlyReturnMessage('');
+    try {
+      const response = await api.put('/auth/profile', { monthlyReturnPercent: percentage });
+      const savedPercentage = Number(response.data.monthlyReturnPercent);
+      setMonthlyReturnPercent(String(Number.isFinite(savedPercentage) ? savedPercentage : percentage));
+      setMonthlyReturnMessage('Monthly return saved.');
+    } catch (error) {
+      console.error('Failed to save monthly return setting', error);
+      setMonthlyReturnError(error.response?.data?.message || 'Could not save the monthly return setting.');
+    } finally {
+      setIsSavingMonthlyReturn(false);
+    }
+  };
 
   const updateAccountField = (field, value) => {
     const nextForm = { ...accountForm, [field]: value };
@@ -351,10 +403,27 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
                   min="-100"
                   step="0.01"
                   value={monthlyReturnPercent}
-                  onChange={(event) => setMonthlyReturnPercent(event.target.value)}
+                  onChange={(event) => {
+                    setMonthlyReturnPercent(event.target.value);
+                    setMonthlyReturnMessage('');
+                    setMonthlyReturnError('');
+                  }}
+                  disabled={isLoadingMonthlyReturn || isSavingMonthlyReturn}
                 />
                 <span>%</span>
               </div>
+            </div>
+            <div className="monthly-return-save">
+              <button
+                className="primary-btn"
+                type="button"
+                onClick={saveMonthlyReturn}
+                disabled={isLoadingMonthlyReturn || isSavingMonthlyReturn}
+              >
+                {isSavingMonthlyReturn ? 'Saving...' : 'Save monthly return'}
+              </button>
+              {monthlyReturnMessage && <span className="success-text" role="status">{monthlyReturnMessage}</span>}
+              {monthlyReturnError && <span className="error-text" role="alert">{monthlyReturnError}</span>}
             </div>
             <p className="muted">Calculated separately from each active account's funded amount. This is a projection and does not change saved balances.</p>
             {isLoading || loadingSections.has('accounts') ? (

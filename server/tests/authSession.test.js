@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import createAuthToken from '../src/config/authToken.js';
-import { createDemoSession, purgeExpiredDemoAccounts } from '../src/controllers/authController.js';
+import {
+  createDemoSession,
+  getTraderProfile,
+  purgeExpiredDemoAccounts,
+  updateTraderProfile,
+} from '../src/controllers/authController.js';
 import { getDashboardData } from '../src/controllers/dashboardController.js';
 import protect from '../src/middleware/authMiddleware.js';
 
@@ -134,4 +139,52 @@ test('demo sessions create isolated accounts with a ten-day expiry', async () =>
   await getDashboardData({ user: { id: first.body._id } }, dashboardResponse);
   assert.deepEqual(dashboardResponse.body.accounts, []);
   assert.deepEqual(dashboardResponse.body.trades, []);
+});
+
+test('monthly return percentage is validated and saved in the user profile', async () => {
+  const demoResponse = {
+    statusCode: 200,
+    status(statusCode) {
+      this.statusCode = statusCode;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  };
+  await createDemoSession({}, demoResponse);
+  const user = { id: demoResponse.body._id };
+  const invalidResponse = {
+    statusCode: 200,
+    status(statusCode) {
+      this.statusCode = statusCode;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  };
+
+  await updateTraderProfile({ user, body: { monthlyReturnPercent: -101 } }, invalidResponse);
+  assert.equal(invalidResponse.statusCode, 400);
+
+  const saveResponse = {
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  };
+  await updateTraderProfile({ user, body: { monthlyReturnPercent: 2.5 } }, saveResponse);
+  assert.equal(saveResponse.body.monthlyReturnPercent, 2.5);
+
+  const profileResponse = {
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  };
+  await getTraderProfile({ user }, profileResponse);
+  assert.equal(profileResponse.body.monthlyReturnPercent, 2.5);
 });
