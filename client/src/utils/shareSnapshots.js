@@ -65,21 +65,19 @@ export const accountShareItem = (account, formatCurrency, trades = []) => ({
   title: account.name || 'Trading Account',
   description: `${account.propFirm || 'Trading account'} · ${account.status || 'Unknown status'}`,
   snapshot: {
-    columns: ['Account', 'Prop firm', 'Status', 'Type', 'Purchase date', 'Funded amount', 'Balance', 'Starting balance', 'Payout received'],
+    columns: ['Status', 'Type', 'Start date', 'Starting balance', 'Current balance', 'Payouts', 'Total lots traded'],
     rows: [[
-      account.name || '',
-      account.propFirm || '',
       account.status || '',
       account.type || '',
       account.purchaseDate || '',
-      formatCurrency(account.fundedAmount),
-      formatCurrency(account.balance),
       formatCurrency(account.startingBalance),
+      formatCurrency(account.balance),
       formatCurrency(account.payoutReceived),
+      trades.reduce((total, trade) => total + Number(trade.lotSize || 0), 0).toFixed(2),
     ]],
     highlights: [
       { label: 'Account P/L', value: formatCurrency(Number(account.balance || 0) - Number(account.startingBalance || 0)) },
-      { label: 'Related trades', value: trades.length },
+      { label: 'Total trades', value: trades.length },
     ],
   },
 });

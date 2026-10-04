@@ -259,7 +259,7 @@ const AccountSection = ({
             <div className="row-actions">
               <SharePanel
                 items={[
-                  accountShareItem(account, formatCurrency),
+                  accountShareItem(account, formatCurrency, trades.filter((trade) => trade.account === account.name)),
                   ...(trades.filter((trade) => trade.account === account.name).length
                     ? [accountTradesShareItem(account, trades.filter((trade) => trade.account === account.name), formatCurrency)]
                     : []),

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterTradeHistory, tradeShareItem, tradeHistoryShareItem } from './shareSnapshots.js';
+import { accountShareItem, filterTradeHistory, tradeShareItem, tradeHistoryShareItem } from './shareSnapshots.js';
 
 const trades = [
   { date: '2026-06-01', account: 'Alpha', pair: 'EURUSD', buySell: 'Buy', entryPrice: 1.1, exitPrice: 1.2, lotSize: 0.5, pnl: 50 },
@@ -41,4 +41,40 @@ test('history share marks snapshots truncated at the API row limit', () => {
   const share = tradeHistoryShareItem(matches, formatCurrency);
   assert.equal(share.snapshot.rows.length, 500);
   assert.equal(share.description, 'First 500 of 501 trades matching the selected filters');
+});
+
+test('account share uses account-specific fields and summarizes its trades', () => {
+  const account = {
+    name: 'Alpha 50K',
+    status: 'Active',
+    type: 'Instant',
+    purchaseDate: '2026-06-10',
+    startingBalance: 50000,
+    balance: 50227,
+    payoutReceived: 1492,
+  };
+  const share = accountShareItem(account, formatCurrency, trades.slice(0, 2));
+
+  assert.deepEqual(share.snapshot.columns, [
+    'Status',
+    'Type',
+    'Start date',
+    'Starting balance',
+    'Current balance',
+    'Payouts',
+    'Total lots traded',
+  ]);
+  assert.deepEqual(share.snapshot.rows[0], [
+    'Active',
+    'Instant',
+    '2026-06-10',
+    '$50000.00',
+    '$50227.00',
+    '$1492.00',
+    '0.75',
+  ]);
+  assert.deepEqual(share.snapshot.highlights, [
+    { label: 'Account P/L', value: '$227.00' },
+    { label: 'Total trades', value: 2 },
+  ]);
 });

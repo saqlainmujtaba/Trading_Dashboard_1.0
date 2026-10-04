@@ -12,9 +12,10 @@ export async function GET(request, { params }) {
   const highlights = (share.snapshot.highlights || []).slice(0, 3);
   const rows = (share.snapshot.rows || []).slice(0, 4);
   const columns = share.snapshot.columns || [];
-  const isTrade = rows.length === 1
+  const isTrade = share.type === 'trade' && rows.length === 1
     && columns.some((column) => /^entry(?: price)?$/i.test(column))
     && columns.some((column) => /^exit(?: price)?$/i.test(column));
+  const isAccount = share.type === 'account' && rows.length === 1;
   const tradeDetails = isTrade
     ? [
       ['Instrument', /pair|instrument/i],
@@ -31,6 +32,21 @@ export async function GET(request, { params }) {
       value: rows[0][columns.findIndex((column) => expression.test(column))] ?? '—',
     }))
     : [];
+  const accountDetails = isAccount
+    ? [
+      ['Status', /^status$/i],
+      ['Type', /^type$/i],
+      ['Start date', /^start date$|purchase date/i],
+      ['Starting balance', /^starting balance$/i],
+      ['Current balance', /^current balance$|^balance$/i],
+      ['Payouts', /^payouts?$|payout received/i],
+      ['Total lots traded', /^total lots traded$/i],
+    ].map(([label, expression]) => ({
+      label,
+      value: rows[0][columns.findIndex((column) => expression.test(column))] ?? '—',
+    }))
+    : [];
+  const shareDetails = isTrade ? tradeDetails : accountDetails;
   const pnlColor = (label, value) => {
     if (!/p\/l|profit|loss/i.test(label)) return '#ffffff';
     const amount = Number(String(value).replace(/[^\d.-]/g, ''));
@@ -61,12 +77,11 @@ export async function GET(request, { params }) {
         fontFamily: 'Arial, sans-serif',
         position: 'relative',
       }}>
-        <div style={{ position: 'absolute', top: 40, right: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 160, height: 180, padding: 8, borderRadius: 10, background: '#ffffff' }}>
+        <div style={{ position: 'absolute', top: 40, right: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 160, height: 160, padding: 8, borderRadius: 12, background: '#ffffff' }}>
           <svg width="140" height="140" viewBox={`0 0 ${qrSize} ${qrSize}`} shapeRendering="crispEdges">
             <rect x="0" y="0" width={qrSize} height={qrSize} fill="#ffffff" />
             <path d={qrPath} fill="#0b1220" />
           </svg>
-          <div style={{ marginTop: 4, color: '#0b1220', fontSize: 12, fontWeight: 700 }}>SCAN TO VIEW ONLINE</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', color: '#60a5fa', fontSize: 22, fontWeight: 700 }}>
           PERSONAL TRADING DASHBOARD
@@ -90,9 +105,9 @@ export async function GET(request, { params }) {
           ))}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 28, color: '#e2e8f0', fontSize: 18 }}>
-          {isTrade ? (
+          {shareDetails.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 20px' }}>
-              {tradeDetails.map((detail) => (
+              {shareDetails.map((detail) => (
                 <div key={detail.label} style={{ display: 'flex', width: '31%', gap: 8, fontSize: 17 }}>
                   <span style={{ color: '#94a3b8' }}>{detail.label}:</span>
                   <span style={{ color: pnlColor(detail.label, detail.value), fontWeight: 600 }}>{String(detail.value).slice(0, 22)}</span>
@@ -103,7 +118,6 @@ export async function GET(request, { params }) {
             <div key={index}>{row.slice(0, 4).map(String).join('  ·  ').slice(0, 96)}</div>
           ))}
         </div>
-        <div style={{ marginTop: 'auto', color: '#94a3b8', fontSize: 16 }}>Scan the QR code to open this share online</div>
       </div>
     ),
     { width: 1200, height: 630 },
