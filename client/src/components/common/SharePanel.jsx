@@ -26,6 +26,13 @@ const getShareTarget = (item) => {
   return item.label || item.title;
 };
 
+const getActionLabels = (item) => {
+  if (item.type === 'account') return { share: 'Share account', image: 'Download account image' };
+  if (item.type === 'account-trading') return { share: 'Share trades', image: 'Download trades image' };
+  if (item.type === 'active-accounts') return { share: 'Share accounts', image: 'Download accounts image' };
+  return { share: `Share ${item.label || item.title}`, image: `Download ${item.label || item.title} image` };
+};
+
 const drawShareImage = async (item, ownerName, shareUrl) => {
   const canvas = document.createElement('canvas');
   canvas.width = 1200;
@@ -283,6 +290,7 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, showLab
     <div className={`share-panel ${compact ? 'share-panel-compact' : ''} ${className}`}>
       {items.map((item) => {
         const target = getShareTarget(item);
+        const labels = getActionLabels(item);
         return (
           <div className="share-action" key={`${item.type}-${item.title}`}>
             <button
@@ -290,22 +298,22 @@ const SharePanel = ({ items = [], ownerName = 'Trader', compact = false, showLab
               className={`secondary-btn icon-action-button ${showLabels ? 'icon-action-button-labeled' : ''}`}
               onClick={() => openShare(item)}
               disabled={isCreating}
-              aria-label={`Create a share link for ${target}`}
-              title={`Create a share link for ${target}`}
+              aria-label={`${labels.share} (${target})`}
+              title={`${labels.share} (${target})`}
             >
               <ActionIcon name="share" />
-              {showLabels && <span className="icon-action-label">Share link</span>}
+              {showLabels && <span className="icon-action-label">{labels.share}</span>}
             </button>
             <button
               type="button"
               className={`secondary-btn icon-action-button ${showLabels ? 'icon-action-button-labeled' : ''}`}
               onClick={() => downloadShareImage(item)}
               disabled={isCreating}
-              aria-label={`Download an image of ${target} with QR code`}
-              title={`Download an image of ${target} with QR code`}
+              aria-label={`${labels.image} (${target}, with QR code)`}
+              title={`${labels.image} (${target}, with QR code)`}
             >
               <ActionIcon name="image" />
-              {showLabels && <span className="icon-action-label">Image</span>}
+              {showLabels && <span className="icon-action-label">{labels.image}</span>}
             </button>
           </div>
         );
