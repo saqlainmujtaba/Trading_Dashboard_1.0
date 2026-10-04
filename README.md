@@ -41,6 +41,10 @@ A full-stack dashboard for managing prop-firm trading accounts, planned accounts
 - MongoDB
 - Mongoose
 
+### Next.js version
+
+A standalone Next.js version of the dashboard, including its own copy of the Express API, is available in [`nextjs/`](./nextjs/README.md). The existing Vite app and root npm scripts are unchanged. Follow the [Next.js setup instructions](./nextjs/README.md) to install and run the separate project.
+
 ## Project Structure
 
 ```text
@@ -53,6 +57,11 @@ Personal Trading Dashboard/
 ├── mobile/
 │   ├── App.js
 │   ├── app.json
+│   └── package.json
+├── nextjs/
+│   ├── app/
+│   ├── server/
+│   ├── src/
 │   └── package.json
 ├── server/
 │   ├── src/

@@ -2,10 +2,13 @@
 node_modules/
 client/node_modules/
 server/node_modules/
+nextjs/node_modules/
+nextjs/server/node_modules/
 
 # Build output
 client/dist/
 server/dist/
+nextjs/.next/
 
 # Environment files
 .env
@@ -39,4 +42,3 @@ Thumbs.db
 *.local
 ReportHistory-*.xlsx
 *.xlsx
-
