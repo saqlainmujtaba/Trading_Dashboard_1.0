@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../../api';
 import Skeleton from '../common/Skeleton';
@@ -95,6 +95,8 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const [accountForm, setAccountForm] = useState(defaultAccountForm);
   const [editingAccountId, setEditingAccountId] = useState(null);
   const [showAccountForm, setShowAccountForm] = useState(false);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const accountSubmitLock = useRef(false);
   const [plannedForm, setPlannedForm] = useState(defaultPlannedAccountForm);
   const [editingPlannedId, setEditingPlannedId] = useState(null);
   const [showPlannedForm, setShowPlannedForm] = useState(false);
@@ -231,6 +233,9 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
   const handleAccountSubmit = async (event) => {
     event.preventDefault();
+    if (accountSubmitLock.current) return;
+    accountSubmitLock.current = true;
+    setIsSavingAccount(true);
     try {
       if (editingAccountId) {
         await api.put(`/dashboard/accounts/${editingAccountId}`, accountForm);
@@ -243,6 +248,9 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       onRefresh(['accounts']);
     } catch (error) {
       console.error('Unable to save account', error);
+    } finally {
+      accountSubmitLock.current = false;
+      setIsSavingAccount(false);
     }
   };
 
@@ -393,6 +401,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           setEditingAccountId={setEditingAccountId}
           defaultAccountForm={defaultAccountForm}
           handleAccountSubmit={handleAccountSubmit}
+          isSavingAccount={isSavingAccount}
           formatCurrency={formatCurrency}
           deleteAccount={deleteAccount}
           updateAccountField={updateAccountField}

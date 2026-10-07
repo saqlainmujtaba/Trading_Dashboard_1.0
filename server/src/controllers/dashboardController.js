@@ -144,7 +144,7 @@ const buildDashboardPayload = (userId) => {
       activeAccounts: accounts.filter((account) => account.status === 'Active').length,
       totalFunding: accounts.reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
       plannedFunding: plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0),
-      combinedFunding: accounts.reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0) + plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0),
+      combinedFunding: accounts.filter((account) => account.status !== 'Failed').reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0) + plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0),
       totalProfit: trades.reduce((sum, trade) => sum + (Number(trade.pnl) || 0), 0),
       totalPayouts: payouts.reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0),
       failedAccounts: accounts.filter((account) => account.status === 'Failed').length,
@@ -268,7 +268,7 @@ export const getDashboardData = async (req, res) => {
         activeAccounts: accounts.filter((account) => account.status === 'Active').length,
         totalFunding,
         plannedFunding,
-        combinedFunding: totalFunding + plannedFunding,
+        combinedFunding: accounts.filter((account) => account.status !== 'Failed').reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0) + plannedFunding,
         totalProfit,
         totalPayouts,
         failedAccounts: accounts.filter((account) => account.status === 'Failed').length,
@@ -282,6 +282,9 @@ export const getDashboardData = async (req, res) => {
 export const createAccount = async (req, res) => {
   try {
     const payload = pickFields(req.body, accountFields);
+    if (await hasAccountForUser(req.user.id, payload.name)) {
+      return res.status(409).json({ message: 'An account with this name already exists in your profile.' });
+    }
     payload.profitPercent = calculateProfitPercent(payload);
 
     if (!isMongoConnected()) {

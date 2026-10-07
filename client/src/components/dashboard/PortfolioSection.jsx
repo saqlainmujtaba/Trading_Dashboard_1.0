@@ -21,12 +21,13 @@ const PortfolioSection = ({ accounts = [], plannedAccounts = [], formatCurrency,
   const firms = [...new Set(accounts.map((account) => account.propFirm?.trim() || 'Unspecified firm'))];
   const summaries = firms.map((firm) => {
     const firmAccounts = accounts.filter((account) => (account.propFirm?.trim() || 'Unspecified firm') === firm);
+    const activeAccounts = firmAccounts.filter((account) => account.status === 'Active');
     return {
       firm,
       accountCount: firmAccounts.length,
       fundedAmount: firmAccounts.reduce((total, account) => total + Number(account.fundedAmount || 0), 0),
-      balance: firmAccounts.reduce((total, account) => total + Number(account.balance || 0), 0),
-      startingBalance: firmAccounts.reduce((total, account) => total + Number(account.startingBalance || 0), 0),
+      balance: activeAccounts.reduce((total, account) => total + Number(account.balance || 0), 0),
+      profit: firmAccounts.reduce((total, account) => total + (Number(account.balance || 0) - Number(account.startingBalance || 0)), 0),
     };
   });
   const sortedSummaries = sortRows(summaries, sortBy);
@@ -69,8 +70,8 @@ const PortfolioSection = ({ accounts = [], plannedAccounts = [], formatCurrency,
               <p>{summary.accountCount} {summary.accountCount === 1 ? 'account' : 'accounts'}</p>
               <div className="portfolio-metrics">
                 <span>Funded</span><strong>{formatCurrency(summary.fundedAmount)}</strong>
-                <span>Balance</span><strong>{formatCurrency(summary.balance)}</strong>
-                <span>Profit</span><strong>{formatCurrency(summary.balance - summary.startingBalance)}</strong>
+                <span>Active balance</span><strong>{formatCurrency(summary.balance)}</strong>
+                <span>Profit</span><strong>{formatCurrency(summary.profit)}</strong>
               </div>
             </div>
           ))}

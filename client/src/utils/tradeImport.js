@@ -5,12 +5,12 @@ const normalizeHeader = (value) => String(value || '')
   .replace(/[^a-z0-9]/g, '');
 
 const columnAliases = {
-  date: ['closetime', 'closingtime', 'closedate', 'exittime', 'closedatetime', 'time2', 'time1', 'date', 'datetime', 'time', 'opentime', 'openingtime', 'entrytime'],
+  date: ['closetimeutc', 'closingtimeutc', 'closedtimeutc', 'closetime', 'closingtime', 'closedtime', 'closeddate', 'closingdate', 'exittime', 'closedatetime', 'time2', 'time1', 'date', 'datetime', 'time', 'opentimeutc', 'openingtimeutc', 'opentime', 'openingtime', 'opendate', 'openingdate', 'entrytime'],
   pair: ['symbol', 'pair', 'instrument', 'asset', 'market'],
   side: ['side', 'direction', 'buysell', 'type', 'tradetype'],
-  volume: ['lotsize', 'lots', 'volume', 'quantity', 'size', 'units'],
-  entryPrice: ['entryprice', 'openprice', 'openingprice', 'priceopen', 'openrate', 'entry', 'price'],
-  exitPrice: ['exitprice', 'closeprice', 'closingprice', 'priceclose', 'closerate', 'exit', 'price2', 'price1'],
+  volume: ['lotsize', 'lots', 'lot', 'volume', 'quantity', 'size', 'units'],
+  entryPrice: ['entryprice', 'openprice', 'openingprice', 'priceopen', 'openrate', 'open', 'entry', 'price'],
+  exitPrice: ['exitprice', 'closeprice', 'closingprice', 'priceclose', 'closerate', 'closed', 'exit', 'price2', 'price1'],
   pnl: ['netprofit', 'netpnl', 'realizedpnl', 'realizedprofit', 'profitloss', 'pnl', 'profit', 'grossprofit', 'pl'],
   commission: ['commission', 'fees', 'fee'],
   swap: ['swap', 'rollover', 'financing'],
@@ -143,10 +143,14 @@ const makeTrade = (row, overrides = {}) => {
     rrMode: 'manual',
     reason: String(readValue(row, 'reason') || ''),
     notes: String(readValue(row, 'notes') || ''),
+    commission: parseNumber(readValue(row, 'commission')) ?? 0,
+    swap: parseNumber(readValue(row, 'swap')) ?? 0,
+    grossPnl: importedPnl,
     pnl,
   };
   const sourceId = readValue(row, 'id') || readValue(row, 'position');
   const fingerprint = [sourceId || '', date, pair, buySell, trade.entryPrice, trade.exitPrice, trade.lotSize, pnl ?? ''].join('|');
+  trade.position = String(sourceId || '');
   trade.externalId = hashText(fingerprint);
   return trade;
 };
@@ -374,4 +378,219 @@ export const parseTradeFile = async (file) => {
   if (!result.trades.length) throw new Error('No complete trades were found. Check that the export includes date, symbol, direction, and prices or profit.');
   if (result.trades.length > 1000) throw new Error('This file contains more than 1,000 trades. Export a smaller date range and try again.');
   return result;
+};
+
+const getOcrLines = (tsv) => {
+  const [headerLine, ...rows] = String(tsv || '').split(/\r?\n/);
+  const headers = headerLine?.split('\t') || [];
+  const indexOf = (name) => headers.indexOf(name);
+  const groups = new Map();
+
+  rows.forEach((line) => {
+    const columns = line.split('\t');
+    if (columns.length < headers.length || columns[indexOf('level')] !== '5') return;
+    const text = String(columns[indexOf('text')] || '').trim();
+    const confidence = Number(columns[indexOf('conf')]);
+    if (!text || confidence < 0) return;
+    const groupKey = ['page_num', 'block_num', 'par_num', 'line_num']
+      .map((name) => columns[indexOf(name)])
+      .join(':');
+    const word = {
+      text,
+      left: Number(columns[indexOf('left')]),
+      top: Number(columns[indexOf('top')]),
+      width: Number(columns[indexOf('width')]),
+      height: Number(columns[indexOf('height')]),
+    };
+    const group = groups.get(groupKey) || [];
+    group.push(word);
+    groups.set(groupKey, group);
+  });
+
+  return [...groups.values()].map((words) => words.sort((first, second) => first.left - second.left));
+};
+
+const getOcrHeaderAnchors = (words) => {
+  const normalizedWords = words.map((word) => ({ ...word, normalized: normalizeHeader(word.text) }));
+  const findHeaderCenter = (exactNames, phrase) => {
+    const exact = normalizedWords.find((item) => exactNames.includes(item.normalized));
+    if (exact) return exact.left + exact.width / 2;
+    if (!phrase) return undefined;
+    for (let index = 0; index <= normalizedWords.length - phrase.length; index += 1) {
+      const tokens = normalizedWords.slice(index, index + phrase.length);
+      if (tokens.every((token, tokenIndex) => token.normalized === phrase[tokenIndex])) {
+        return (tokens[0].left + tokens.at(-1).left + tokens.at(-1).width) / 2;
+      }
+    }
+    return undefined;
+  };
+  const anchors = {};
+  ['position', 'symbol', 'type', 'volume', 'commission', 'swap', 'profit'].forEach((field) => {
+    const word = normalizedWords.find((item) => item.normalized === field);
+    if (word) anchors[field] = word.left + word.width / 2;
+  });
+
+  ['time', 'price'].forEach((field) => {
+    anchors[field] = normalizedWords
+      .filter((item) => item.normalized === field)
+      .map((item) => item.left + item.width / 2)
+      .sort((first, second) => first - second);
+  });
+
+  anchors.ticket = findHeaderCenter(['ticket']);
+  anchors.openTime = findHeaderCenter(['opentime', 'opentimeutc'], ['open', 'time']);
+  anchors.closeTime = findHeaderCenter(['closetime', 'closetimeutc'], ['close', 'time']);
+  anchors.openPrice = findHeaderCenter(['openprice'], ['open', 'price']);
+  anchors.closePrice = findHeaderCenter(['closeprice'], ['close', 'price']);
+  anchors.grossProfit = findHeaderCenter(['grossprofit'], ['gross', 'profit']);
+  anchors.side = findHeaderCenter(['side']);
+  anchors.openDate = findHeaderCenter(['opendate', 'opendateutc'], ['open', 'date']);
+  anchors.closedDate = findHeaderCenter(['closeddate', 'closeddateutc', 'closingdate'], ['closed', 'date']);
+  anchors.open = findHeaderCenter(['open']);
+  anchors.closed = findHeaderCenter(['closed']);
+  anchors.lots = findHeaderCenter(['lots', 'lot']);
+
+  ['sl', 'tp'].forEach((field) => {
+    const direct = normalizedWords.find((item) => item.normalized === field);
+    if (direct) {
+      anchors[field] = direct.left + direct.width / 2;
+      return;
+    }
+    const firstLetter = field[0];
+    const lastLetter = field[1];
+    const firstIndex = normalizedWords.findIndex((item, index) => item.normalized === firstLetter
+      && normalizedWords.slice(index + 1, index + 3).some((next) => next.normalized === lastLetter));
+    if (firstIndex >= 0) {
+      const first = normalizedWords[firstIndex];
+      const last = normalizedWords.slice(firstIndex + 1, firstIndex + 3)
+        .find((item) => item.normalized === lastLetter);
+      anchors[field] = (first.left + last.left + last.width) / 2;
+    }
+  });
+
+  return anchors;
+};
+
+const isMt5OcrHeader = (words) => {
+  const anchors = getOcrHeaderAnchors(words);
+  return Boolean(anchors.position && anchors.symbol && anchors.type && anchors.volume
+    && anchors.time?.length >= 2 && anchors.price?.length >= 2
+    && anchors.sl && anchors.tp && anchors.commission && anchors.swap && anchors.profit);
+};
+
+const isTicketOcrHeader = (words) => {
+  const anchors = getOcrHeaderAnchors(words);
+  return Boolean(anchors.ticket && anchors.openTime && anchors.openPrice
+    && anchors.closeTime && anchors.closePrice && anchors.side
+    && anchors.symbol && anchors.volume && anchors.grossProfit);
+};
+
+const isOpenClosedOcrHeader = (words) => {
+  const anchors = getOcrHeaderAnchors(words);
+  return Boolean(anchors.symbol && anchors.type && anchors.openDate && anchors.open
+    && anchors.closedDate && anchors.closed && anchors.tp && anchors.sl
+    && anchors.lots && anchors.commission && anchors.profit);
+};
+
+export const extractScreenshotTradeRecords = (tsv) => {
+  const lines = getOcrLines(tsv);
+  const ticketFormat = lines.some(isTicketOcrHeader);
+  const openClosedFormat = !ticketFormat && lines.some(isOpenClosedOcrHeader);
+  const isHeader = ticketFormat
+    ? isTicketOcrHeader
+    : openClosedFormat
+      ? isOpenClosedOcrHeader
+      : isMt5OcrHeader;
+  const headerIndex = lines.findIndex(isHeader);
+  if (headerIndex < 0) {
+    throw new Error('Could not read the trade-history headings. Use a clear screenshot showing all columns and complete trade rows.');
+  }
+
+  const headerWords = lines[headerIndex];
+  const anchors = getOcrHeaderAnchors(headerWords);
+  const columns = ticketFormat
+    ? [
+      ['Ticket', anchors.ticket],
+      ['Open Time (UTC)', anchors.openTime],
+      ['Open Price', anchors.openPrice],
+      ['Close Time (UTC)', anchors.closeTime],
+      ['Close Price', anchors.closePrice],
+      ['Side', anchors.side],
+      ['Symbol', anchors.symbol],
+      ['Volume', anchors.volume],
+      ['Gross Profit', anchors.grossProfit],
+    ]
+    : openClosedFormat
+      ? [
+        ['Symbol', anchors.symbol],
+        ['Type', anchors.type],
+        ['Open Date', anchors.openDate],
+        ['Open', anchors.open],
+        ['Closed Date', anchors.closedDate],
+        ['Closed', anchors.closed],
+        ['TP', anchors.tp],
+        ['SL', anchors.sl],
+        ['Lots', anchors.lots],
+        ['Commission', anchors.commission],
+        ['Profit', anchors.profit],
+      ]
+    : [
+      ['Time', anchors.time[0]],
+      ['Position', anchors.position],
+      ['Symbol', anchors.symbol],
+      ['Type', anchors.type],
+      ['Volume', anchors.volume],
+      ['Price', anchors.price[0]],
+      ['S / L', anchors.sl],
+      ['T / P', anchors.tp],
+      ['Time2', anchors.time[1]],
+      ['Price2', anchors.price[1]],
+      ['Commission', anchors.commission],
+      ['Swap', anchors.swap],
+      ['Profit', anchors.profit],
+    ].filter(([, center]) => Number.isFinite(center))
+      .sort((first, second) => first[1] - second[1]);
+  const boundaries = columns.map(([, center], index) => index === 0
+    ? -Infinity
+    : (columns[index - 1][1] + center) / 2);
+  const records = [];
+
+  lines.slice(headerIndex + 1).forEach((line) => {
+    const values = Array(columns.length).fill('');
+    line.forEach((word) => {
+      const center = word.left + word.width / 2;
+      let columnIndex = boundaries.findIndex((boundary, index) => center >= boundary
+        && (index === columns.length - 1 || center < (columns[index][1] + columns[index + 1][1]) / 2));
+      if (columnIndex < 0) columnIndex = columns.length - 1;
+      values[columnIndex] = [values[columnIndex], word.text].filter(Boolean).join(' ');
+    });
+    if (values.some(Boolean)) {
+      records.push(Object.fromEntries(columns.map(([name], index) => [name, values[index]])));
+    }
+  });
+
+  return records;
+};
+
+export const parseTradeImage = async (file, onProgress = () => {}) => {
+  if (file.size > 20 * 1024 * 1024) throw new Error('Choose a screenshot smaller than 20 MB.');
+  if (!String(file.type || '').startsWith('image/')) throw new Error('Choose a PNG, JPG, or WebP screenshot.');
+
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker('eng', 1, {
+    logger: (message) => {
+      if (message.status === 'recognizing text') onProgress(`${Math.round((message.progress || 0) * 100)}%`);
+    },
+  });
+  try {
+    const { data } = await worker.recognize(file, {}, { tsv: true });
+    const result = normalizeTradeRows(extractScreenshotTradeRecords(data.tsv));
+    if (!result.trades.length) {
+      throw new Error('No complete MT5 trades were recognized. Check that the screenshot is sharp and shows complete trade rows.');
+    }
+    if (result.trades.length > 1000) throw new Error('This screenshot contains more than 1,000 trades. Use a smaller date range.');
+    return result;
+  } finally {
+    await worker.terminate();
+  }
 };

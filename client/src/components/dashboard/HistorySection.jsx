@@ -3,7 +3,7 @@ import FormField from "../common/FormField";
 import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
-import { parseTradeFile } from '../../utils/tradeImport';
+import { parseTradeFile, parseTradeImage } from '../../utils/tradeImport';
 import SharePanel from '../common/SharePanel';
 import ActionIcon from '../common/ActionIcon';
 import { filterTradeHistory, payoutHistoryShareItem, payoutShareItem, tradeHistoryShareItem, tradeShareItem } from '../../utils/shareSnapshots';
@@ -74,6 +74,7 @@ const HistorySection = ({
   ownerName,
 }) => {
   const importFileRef = useRef(null);
+  const importImageRef = useRef(null);
   const [tradeSortBy, setTradeSortBy] = useState('date.desc');
   const [historyFilters, setHistoryFilters] = useState({ month: '', account: '', pair: '', side: '' });
   const [tradePageSize, setTradePageSize] = useState(10);
@@ -82,6 +83,7 @@ const HistorySection = ({
   const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isParsingImport, setIsParsingImport] = useState(false);
+  const [importProgress, setImportProgress] = useState('');
   const [isImportingTrades, setIsImportingTrades] = useState(false);
   const [importRows, setImportRows] = useState([]);
   const [importSkippedCount, setImportSkippedCount] = useState(0);
@@ -92,6 +94,7 @@ const HistorySection = ({
   const tradeList = trades || [];
   const historyAccountOptions = [...new Set(tradeList.map((trade) => trade.account).filter(Boolean))].sort();
   const historyPairOptions = [...new Set(tradeList.map((trade) => trade.pair).filter(Boolean))].sort();
+  const isScreenshotImport = /\.(png|jpe?g|webp)$/i.test(importFileName);
   const filteredTrades = filterTradeHistory(tradeList, historyFilters);
   const sortedTrades = sortRows(filteredTrades, tradeSortBy);
   const tradePageCount = tradePageSize === 'all'
@@ -142,6 +145,7 @@ const HistorySection = ({
     setImportAccount(activeAccountOptions[0] || '');
     setImportError('');
     setImportResult('');
+    setImportProgress('');
     try {
       const result = await parseTradeFile(file);
       setImportRows(result.trades);
@@ -150,6 +154,32 @@ const HistorySection = ({
       setImportError(error.message || 'Could not read this trade-history file.');
     } finally {
       setIsParsingImport(false);
+    }
+  };
+
+  const handleTradeScreenshot = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImportOpen(true);
+    setIsParsingImport(true);
+    setImportFileName(file.name);
+    setImportRows([]);
+    setImportSkippedCount(0);
+    setImportAccount(activeAccountOptions[0] || '');
+    setImportError('');
+    setImportResult('');
+    setImportProgress('Starting screenshot reader...');
+    try {
+      const result = await parseTradeImage(file, setImportProgress);
+      setImportRows(result.trades);
+      setImportSkippedCount(result.rejectedCount);
+    } catch (error) {
+      setImportError(error.message || 'Could not read this MT5 screenshot.');
+    } finally {
+      setIsParsingImport(false);
+      setImportProgress('');
     }
   };
 
@@ -209,7 +239,9 @@ const HistorySection = ({
           <div className="section-actions">
             <SortControl value={tradeSortBy} options={tradeSortOptions} onChange={setTradeSortBy} label="Sort trades" />
             <input ref={importFileRef} className="visually-hidden" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleTradeFile} />
+            <input ref={importImageRef} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleTradeScreenshot} />
             <button type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
+            <button type="button" className="secondary-btn" onClick={() => importImageRef.current?.click()}>Import MT5 screenshot</button>
             <button
               type="button"
               className="primary-btn"
@@ -295,13 +327,14 @@ const HistorySection = ({
               </div>
               <p className="import-file-name">{importFileName}</p>
               {isParsingImport ? (
-                <p className="empty-state">Reading and matching trade columns...</p>
+                <p className="empty-state">Reading screenshot and matching MT5 columns... {importProgress}</p>
               ) : (
                 <>
                   <div className="import-summary">
                     <span><strong>{importRows.length}</strong> ready to import</span>
                     <span><strong>{importSkippedCount}</strong> skipped or duplicate rows</span>
                   </div>
+                  {isScreenshotImport && <p className="muted">Screenshot recognition runs in your browser. First use needs internet to load the OCR engine. Review the detected values carefully; similar digits can be mistaken.</p>}
                   <label className="field-group import-account-field">
                     <span>Save trades to account</span>
                     <select value={importAccount} onChange={(event) => setImportAccount(event.target.value)}>
@@ -312,12 +345,14 @@ const HistorySection = ({
                   {importRows.length > 0 && (
                     <div className="table-wrap import-preview-table">
                       <table>
-                        <thead><tr><th>Date</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th><th>Lots</th><th>P/L</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Position</th><th>Symbol</th><th>Type</th><th>Entry</th><th>SL</th><th>TP</th><th>Exit</th><th>Volume</th><th>Commission</th><th>Swap</th><th>Profit</th><th>Net P/L</th></tr></thead>
                         <tbody>
                           {importRows.map((trade) => (
                             <tr key={trade.externalId}>
-                              <td>{trade.date}</td><td>{trade.pair}</td><td>{trade.buySell}</td>
-                              <td>{trade.entryPrice}</td><td>{trade.exitPrice}</td><td>{trade.lotSize}</td>
+                              <td>{trade.date}</td><td>{trade.position || '—'}</td><td>{trade.pair}</td><td>{trade.buySell}</td>
+                              <td>{trade.entryPrice}</td><td>{trade.sl || '—'}</td><td>{trade.tp || '—'}</td><td>{trade.exitPrice}</td><td>{trade.lotSize}</td>
+                              <td>{formatCurrency(trade.commission)}</td><td>{formatCurrency(trade.swap)}</td>
+                              <td>{trade.grossPnl == null ? '—' : formatCurrency(trade.grossPnl)}</td>
                               <td>{trade.pnl == null ? 'Auto' : formatCurrency(trade.pnl)}</td>
                             </tr>
                           ))}

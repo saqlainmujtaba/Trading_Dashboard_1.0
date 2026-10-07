@@ -53,6 +53,7 @@ const AccountSection = ({
   setEditingAccountId,
   defaultAccountForm,
   handleAccountSubmit,
+  isSavingAccount = false,
   formatCurrency,
   deleteAccount,
   updateAccountField,
@@ -95,6 +96,7 @@ const AccountSection = ({
             type="button"
             className="primary-btn"
             onClick={() => {
+              if (isSavingAccount) return;
               if (!showAccountForm) {
                 setShowAccountForm(true);
                 return;
@@ -119,11 +121,11 @@ const AccountSection = ({
       )}
 
       {showAccountForm && (
-        <div className="modal-backdrop" onClick={() => { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); }}>
+        <div className="modal-backdrop" onClick={() => { if (!isSavingAccount) { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); } }}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{editingAccountId ? 'Edit account' : 'New account'}</h3>
-              <button type="button" className="icon-close" onClick={() => { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); }}>×</button>
+              <button type="button" className="icon-close" disabled={isSavingAccount} onClick={() => { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); }}>×</button>
             </div>
             <form className="crud-form modal-form" onSubmit={handleAccountSubmit}>
               <div className="form-grid">
@@ -214,8 +216,8 @@ const AccountSection = ({
               </div>
 
               <div className="form-actions">
-                <button className="primary-btn" type="submit">{editingAccountId ? 'Update account' : 'Save account'}</button>
-                <button type="button" className="secondary-btn" onClick={() => { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); }}>Cancel</button>
+                <button className="primary-btn" type="submit" disabled={isSavingAccount}>{isSavingAccount ? 'Saving…' : editingAccountId ? 'Update account' : 'Save account'}</button>
+                <button type="button" className="secondary-btn" disabled={isSavingAccount} onClick={() => { setShowAccountForm(false); setEditingAccountId(null); setAccountForm(defaultAccountForm); }}>Cancel</button>
               </div>
             </form>
           </div>
