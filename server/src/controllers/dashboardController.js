@@ -87,6 +87,39 @@ const hasAccountForUser = async (userId, accountName, activeOnly = false) => {
   return Boolean(await Account.exists(query));
 };
 
+const recalculateAccountBalance = async (userId, accountName) => {
+  if (!accountName) return null;
+
+  if (!isMongoConnected()) {
+    const account = inMemoryData.accounts.find((item) => item.user === userId && item.name === accountName);
+    if (!account) return null;
+
+    const tradeProfit = inMemoryData.trades
+      .filter((item) => item.user === userId && item.account === accountName)
+      .reduce((sum, item) => sum + (Number(item.pnl) || 0), 0);
+    const paidOut = inMemoryData.payouts
+      .filter((item) => item.user === userId && item.account === accountName && item.status === 'Approved')
+      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    account.balance = Number(((Number(account.startingBalance) || 0) + tradeProfit - paidOut).toFixed(2));
+    account.profitPercent = calculateProfitPercent(account);
+    return account;
+  }
+
+  const account = await Account.findOne({ user: userId, name: accountName });
+  if (!account) return null;
+
+  const [trades, payouts] = await Promise.all([
+    Trade.find({ user: userId, account: accountName }).select('pnl').lean(),
+    Payout.find({ user: userId, account: accountName, status: 'Approved' }).select('amount').lean(),
+  ]);
+  const tradeProfit = trades.reduce((sum, item) => sum + (Number(item.pnl) || 0), 0);
+  const paidOut = payouts.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  account.balance = Number(((Number(account.startingBalance) || 0) + tradeProfit - paidOut).toFixed(2));
+  account.profitPercent = calculateProfitPercent(account);
+  await account.save();
+  return account;
+};
+
 const buildDashboardPayload = (userId) => {
   const accounts = isMongoConnected()
     ? []
@@ -253,6 +286,7 @@ export const createAccount = async (req, res) => {
 
     if (!isMongoConnected()) {
       const account = createLocalItem('accounts', req.user.id, payload, 'account');
+      await recalculateAccountBalance(req.user.id, account.name);
       return res.status(201).json(account);
     }
 
@@ -260,7 +294,8 @@ export const createAccount = async (req, res) => {
       ...payload,
       user: req.user.id,
     });
-    res.status(201).json(account);
+    const syncedAccount = await recalculateAccountBalance(req.user.id, account.name);
+    res.status(201).json(syncedAccount || account);
   } catch (error) {
     res.status(500).json({ message: 'Unable to create account', error: error.message });
   }
@@ -278,7 +313,9 @@ export const updateAccount = async (req, res) => {
 
       const accountData = { ...current, ...updates };
       updates.profitPercent = calculateProfitPercent(accountData);
-      return res.json(updateLocalItem('accounts', req.user.id, req.params.id, updates));
+      const updatedAccount = updateLocalItem('accounts', req.user.id, req.params.id, updates);
+      await recalculateAccountBalance(req.user.id, updatedAccount.name);
+      return res.json(updatedAccount);
     }
 
     const account = await Account.findOne({ _id: req.params.id, user: req.user.id });
@@ -290,7 +327,8 @@ export const updateAccount = async (req, res) => {
     Object.assign(account, updates);
     account.profitPercent = calculateProfitPercent(account);
     await account.save();
-    res.json(account);
+    const syncedAccount = await recalculateAccountBalance(req.user.id, account.name);
+    res.json(syncedAccount || account);
   } catch (error) {
     res.status(500).json({ message: 'Unable to update account', error: error.message });
   }
@@ -398,6 +436,7 @@ export const createTrade = async (req, res) => {
 
     if (!isMongoConnected()) {
       const trade = createLocalItem('trades', req.user.id, payload, 'trade');
+      await recalculateAccountBalance(req.user.id, trade.account);
       return res.status(201).json(trade);
     }
 
@@ -405,6 +444,7 @@ export const createTrade = async (req, res) => {
       ...payload,
       user: req.user.id,
     });
+    await recalculateAccountBalance(req.user.id, trade.account);
     res.status(201).json(trade);
   } catch (error) {
     res.status(500).json({ message: 'Unable to create trade', error: error.message });
@@ -510,6 +550,8 @@ export const importTrades = async (req, res) => {
       newTrades.forEach((trade) => createLocalItem('trades', userId, trade, 'trade'));
     }
 
+    if (newTrades.length) await recalculateAccountBalance(userId, accountName);
+
     res.status(201).json({ imported: newTrades.length, duplicates: duplicateCount });
   } catch (error) {
     res.status(500).json({ message: 'Unable to import trades', error: error.message });
@@ -532,7 +574,10 @@ export const updateTrade = async (req, res) => {
       }
       updates.pnl = calculateTradePnl(tradeData);
       updates.rr = calculateTradeRr({ ...tradeData, ...updates });
-      return res.json(updateLocalItem('trades', req.user.id, req.params.id, updates));
+      const updatedTrade = updateLocalItem('trades', req.user.id, req.params.id, updates);
+      await recalculateAccountBalance(req.user.id, current.account);
+      if (updatedTrade.account !== current.account) await recalculateAccountBalance(req.user.id, updatedTrade.account);
+      return res.json(updatedTrade);
     }
 
     const trade = await Trade.findOne({ _id: req.params.id, user: req.user.id });
@@ -549,6 +594,8 @@ export const updateTrade = async (req, res) => {
     trade.pnl = calculateTradePnl(trade);
     trade.rr = calculateTradeRr(trade);
     await trade.save();
+    await recalculateAccountBalance(req.user.id, tradeData.account);
+    if (trade.account !== tradeData.account) await recalculateAccountBalance(req.user.id, trade.account);
     res.json(trade);
   } catch (error) {
     res.status(500).json({ message: 'Unable to update trade', error: error.message });
@@ -558,10 +605,12 @@ export const updateTrade = async (req, res) => {
 export const deleteTrade = async (req, res) => {
   try {
     if (!isMongoConnected()) {
+      const existingTrade = inMemoryData.trades.find((item) => item.user === req.user.id && item._id === req.params.id);
       const removed = deleteLocalItem('trades', req.user.id, req.params.id);
       if (!removed) {
         return res.status(404).json({ message: 'Trade not found' });
       }
+      await recalculateAccountBalance(req.user.id, existingTrade.account);
       return res.json({ message: 'Trade deleted successfully' });
     }
 
@@ -571,6 +620,7 @@ export const deleteTrade = async (req, res) => {
       return res.status(404).json({ message: 'Trade not found' });
     }
 
+    await recalculateAccountBalance(req.user.id, trade.account);
     res.json({ message: 'Trade deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Unable to delete trade', error: error.message });
@@ -586,6 +636,7 @@ export const createPayout = async (req, res) => {
 
     if (!isMongoConnected()) {
       const payout = createLocalItem('payouts', req.user.id, payload, 'payout');
+      await recalculateAccountBalance(req.user.id, payout.account);
       return res.status(201).json(payout);
     }
 
@@ -593,6 +644,7 @@ export const createPayout = async (req, res) => {
       ...payload,
       user: req.user.id,
     });
+    await recalculateAccountBalance(req.user.id, payout.account);
     res.status(201).json(payout);
   } catch (error) {
     res.status(500).json({ message: 'Unable to create payout', error: error.message });
@@ -613,7 +665,10 @@ export const updatePayout = async (req, res) => {
       if (!(await hasAccountForUser(req.user.id, payoutData.account))) {
         return res.status(400).json({ message: 'Select an account that belongs to your profile' });
       }
-      return res.json(updateLocalItem('payouts', req.user.id, req.params.id, updates));
+      const updatedPayout = updateLocalItem('payouts', req.user.id, req.params.id, updates);
+      await recalculateAccountBalance(req.user.id, current.account);
+      if (updatedPayout.account !== current.account) await recalculateAccountBalance(req.user.id, updatedPayout.account);
+      return res.json(updatedPayout);
     }
 
     const payout = await Payout.findOne({ _id: req.params.id, user: req.user.id });
@@ -628,6 +683,8 @@ export const updatePayout = async (req, res) => {
     }
     Object.assign(payout, updates);
     await payout.save();
+    await recalculateAccountBalance(req.user.id, payoutData.account);
+    if (payout.account !== payoutData.account) await recalculateAccountBalance(req.user.id, payout.account);
     res.json(payout);
   } catch (error) {
     res.status(500).json({ message: 'Unable to update payout', error: error.message });
@@ -637,10 +694,12 @@ export const updatePayout = async (req, res) => {
 export const deletePayout = async (req, res) => {
   try {
     if (!isMongoConnected()) {
+      const existingPayout = inMemoryData.payouts.find((item) => item.user === req.user.id && item._id === req.params.id);
       const removed = deleteLocalItem('payouts', req.user.id, req.params.id);
       if (!removed) {
         return res.status(404).json({ message: 'Payout not found' });
       }
+      await recalculateAccountBalance(req.user.id, existingPayout.account);
       return res.json({ message: 'Payout deleted successfully' });
     }
 
@@ -650,6 +709,7 @@ export const deletePayout = async (req, res) => {
       return res.status(404).json({ message: 'Payout not found' });
     }
 
+    await recalculateAccountBalance(req.user.id, payout.account);
     res.json({ message: 'Payout deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Unable to delete payout', error: error.message });

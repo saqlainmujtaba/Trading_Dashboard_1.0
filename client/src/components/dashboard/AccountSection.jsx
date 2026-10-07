@@ -146,8 +146,8 @@ const AccountSection = ({
                 <FormField label="Starting balance" hint="Your account balance when the challenge started">
                   <input type="number" value={accountForm.startingBalance} onChange={(e) => handleFieldChange('startingBalance', Number(e.target.value))} placeholder="0" />
                 </FormField>
-                <FormField label="Current balance" hint="Live equity or current account balance">
-                  <input type="number" value={accountForm.balance} onChange={(e) => handleFieldChange('balance', Number(e.target.value))} placeholder="0" />
+                <FormField label="Current balance" hint="Auto-calculated from starting balance, trade P/L, and approved payouts">
+                  <input type="number" value={accountForm.balance} readOnly aria-readonly="true" />
                 </FormField>
                 <div className="account-leverage-settings">
                   <h4>Instrument leverage (1:X)</h4>

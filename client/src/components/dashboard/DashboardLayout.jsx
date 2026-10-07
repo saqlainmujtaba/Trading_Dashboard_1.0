@@ -213,6 +213,10 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const updateAccountField = (field, value) => {
     const nextForm = { ...accountForm, [field]: value };
 
+    if (field === 'startingBalance' && !editingAccountId) {
+      nextForm.balance = Number(value) || 0;
+    }
+
     if (['fundedAmount', 'balance', 'startingBalance'].includes(field)) {
       const fundedAmount = Number(nextForm.fundedAmount || 0);
       const balance = Number(nextForm.balance || 0);
@@ -284,7 +288,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       setTradeForm(defaultTradeForm);
       setEditingTradeId(null);
       setShowTradeForm(false);
-      onRefresh(['trades']);
+      onRefresh(['trades', 'accounts']);
     } catch (error) {
       console.error('Unable to save trade', error);
     }
@@ -292,7 +296,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
   const handleTradeImport = async (account, importedTrades) => {
     const response = await api.post('/dashboard/trades/import', { account, trades: importedTrades });
-    await onRefresh(['trades']);
+    await onRefresh(['trades', 'accounts']);
     return response.data;
   };
 
@@ -307,7 +311,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
       setPayoutForm(defaultPayoutForm);
       setEditingPayoutId(null);
       setShowPayoutForm(false);
-      onRefresh(['payouts']);
+      onRefresh(['payouts', 'accounts']);
     } catch (error) {
       console.error('Unable to save payout', error);
     }
@@ -325,17 +329,19 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
 
   const deleteTrade = async (id) => {
     await api.delete(`/dashboard/trades/${id}`);
-    onRefresh(['trades']);
+    await onRefresh(['trades', 'accounts']);
   };
 
   const deleteTrades = async (ids) => {
-    await Promise.all(ids.map((id) => api.delete(`/dashboard/trades/${id}`)));
-    await onRefresh(['trades']);
+    for (const id of ids) {
+      await api.delete(`/dashboard/trades/${id}`);
+    }
+    await onRefresh(['trades', 'accounts']);
   };
 
   const deletePayout = async (id) => {
     await api.delete(`/dashboard/payouts/${id}`);
-    onRefresh(['payouts']);
+    await onRefresh(['payouts', 'accounts']);
   };
 
   const confirmDelete = ({ title, message, onConfirm }) => {
