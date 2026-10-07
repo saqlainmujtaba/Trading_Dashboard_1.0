@@ -328,6 +328,11 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
     onRefresh(['trades']);
   };
 
+  const deleteTrades = async (ids) => {
+    await Promise.all(ids.map((id) => api.delete(`/dashboard/trades/${id}`)));
+    await onRefresh(['trades']);
+  };
+
   const deletePayout = async (id) => {
     await api.delete(`/dashboard/payouts/${id}`);
     onRefresh(['payouts']);
@@ -489,6 +494,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           handlePayoutSubmit={handlePayoutSubmit}
           formatCurrency={formatCurrency}
           deleteTrade={deleteTrade}
+          deleteTrades={deleteTrades}
           deletePayout={deletePayout}
           showTradeForm={showTradeForm}
           setShowTradeForm={setShowTradeForm}

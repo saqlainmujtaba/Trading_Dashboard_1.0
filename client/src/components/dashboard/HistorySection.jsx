@@ -61,6 +61,7 @@ const HistorySection = ({
   handlePayoutSubmit,
   formatCurrency,
   deleteTrade,
+  deleteTrades,
   deletePayout,
   showTradeForm,
   setShowTradeForm,
@@ -77,6 +78,7 @@ const HistorySection = ({
   const [historyFilters, setHistoryFilters] = useState({ month: '', account: '', pair: '', side: '' });
   const [tradePageSize, setTradePageSize] = useState(10);
   const [tradePage, setTradePage] = useState(1);
+  const [selectedTradeIds, setSelectedTradeIds] = useState([]);
   const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isParsingImport, setIsParsingImport] = useState(false);
@@ -99,6 +101,12 @@ const HistorySection = ({
   const visibleTrades = tradePageSize === 'all'
     ? sortedTrades
     : sortedTrades.slice((currentTradePage - 1) * tradePageSize, currentTradePage * tradePageSize);
+  const allFilteredTradesSelected = sortedTrades.length > 0
+    && sortedTrades.every((trade) => selectedTradeIds.includes(trade._id));
+  const selectedTrades = tradeList.filter((trade) => selectedTradeIds.includes(trade._id));
+  const toggleAllFilteredTrades = () => setSelectedTradeIds(allFilteredTradesSelected
+    ? selectedTradeIds.filter((id) => !sortedTrades.some((trade) => trade._id === id))
+    : [...new Set([...selectedTradeIds, ...sortedTrades.map((trade) => trade._id)])]);
   const firstVisibleTrade = sortedTrades.length ? (currentTradePage - 1) * (tradePageSize === 'all' ? sortedTrades.length : tradePageSize) + 1 : 0;
   const lastVisibleTrade = tradePageSize === 'all'
     ? sortedTrades.length
@@ -254,6 +262,26 @@ const HistorySection = ({
             </select>
           </label>
         </div>
+        {sortedTrades.length > 0 && (
+          <div className="history-bulk-actions">
+            <label className="history-select-all">
+              <input type="checkbox" checked={allFilteredTradesSelected} onChange={toggleAllFilteredTrades} />
+              Select all {sortedTrades.length} matching trades
+            </label>
+            <span>{selectedTrades.length} selected</span>
+            <button type="button" className="danger-btn" disabled={!selectedTrades.length} onClick={() => {
+              const accountNames = [...new Set(selectedTrades.map((trade) => trade.account))];
+              confirmDelete({
+                title: `Delete ${selectedTrades.length} trades?`,
+                message: `This will permanently delete ${selectedTrades.length} selected trades${accountNames.length === 1 ? ` from account "${accountNames[0]}"` : ` across ${accountNames.length} accounts`}. This action cannot be undone.`,
+                onConfirm: async () => {
+                  await deleteTrades(selectedTrades.map((trade) => trade._id));
+                  setSelectedTradeIds([]);
+                },
+              });
+            }}>Delete selected</button>
+          </div>
+        )}
 
         {isImportOpen && (
           <div className="modal-backdrop" onClick={() => setIsImportOpen(false)}>
@@ -569,6 +597,7 @@ const HistorySection = ({
           <table>
             <thead>
               <tr>
+                <th aria-label="Select trade"></th>
                 <th>Date</th>
                 <th>Account</th>
                 <th>Prop firm</th>
@@ -589,10 +618,11 @@ const HistorySection = ({
             <tbody>
               {isLoading || isTradesLoading ? [0, 1, 2, 3, 4].map((row) => (
                 <tr key={row} aria-hidden="true">
-                  <td colSpan="15"><Skeleton className="skeleton-table-row" /></td>
+                  <td colSpan="16"><Skeleton className="skeleton-table-row" /></td>
                 </tr>
               )) : visibleTrades.length ? visibleTrades.map((trade) => (
                 <tr key={trade._id}>
+                  <td><input type="checkbox" aria-label={`Select trade from ${trade.account} on ${trade.date}`} checked={selectedTradeIds.includes(trade._id)} onChange={() => setSelectedTradeIds((ids) => ids.includes(trade._id) ? ids.filter((id) => id !== trade._id) : [...ids, trade._id])} /></td>
                   <td>{trade.date}</td>
                   <td>{trade.account}</td>
                   <td>{trade.propFirm}</td>
@@ -661,7 +691,7 @@ const HistorySection = ({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="15" className="empty-cell">No trade history yet. Add a trade or import your history to get started.</td>
+                  <td colSpan="16" className="empty-cell">No trade history yet. Add a trade or import your history to get started.</td>
                 </tr>
               )}
             </tbody>

@@ -447,6 +447,10 @@ body[data-theme='dark'] .status-paused {
 .share-dialog .form-actions { margin-top: 0; }
 .history-filter-controls { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; margin: 8px 0 16px; }
 .history-filter-controls .field-group { min-width: 0; }
+.history-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 12px; color: var(--muted); font-size: 0.9rem; }
+.history-select-all { display: inline-flex; align-items: center; gap: 8px; }
+.history-select-all input { accent-color: var(--accent); }
+.history-bulk-actions .danger-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .share-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .share-preview, .share-link-result, .share-management { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
 .share-preview span, .share-message, .share-public-footnote { color: var(--muted); font-size: 0.85rem; }
