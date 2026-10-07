@@ -265,7 +265,7 @@ const HistorySection = ({
         {sortedTrades.length > 0 && (
           <div className="history-bulk-actions">
             <label className="history-select-all">
-              <input type="checkbox" checked={allFilteredTradesSelected} onChange={toggleAllFilteredTrades} />
+              <input className="history-select-checkbox" type="checkbox" checked={allFilteredTradesSelected} onChange={toggleAllFilteredTrades} />
               Select all {sortedTrades.length} matching trades
             </label>
             <span>{selectedTrades.length} selected</span>
@@ -622,7 +622,7 @@ const HistorySection = ({
                 </tr>
               )) : visibleTrades.length ? visibleTrades.map((trade) => (
                 <tr key={trade._id}>
-                  <td><input type="checkbox" aria-label={`Select trade from ${trade.account} on ${trade.date}`} checked={selectedTradeIds.includes(trade._id)} onChange={() => setSelectedTradeIds((ids) => ids.includes(trade._id) ? ids.filter((id) => id !== trade._id) : [...ids, trade._id])} /></td>
+                  <td><input className="history-select-checkbox" type="checkbox" aria-label={`Select trade from ${trade.account} on ${trade.date}`} checked={selectedTradeIds.includes(trade._id)} onChange={() => setSelectedTradeIds((ids) => ids.includes(trade._id) ? ids.filter((id) => id !== trade._id) : [...ids, trade._id])} /></td>
                   <td>{trade.date}</td>
                   <td>{trade.account}</td>
                   <td>{trade.propFirm}</td>
