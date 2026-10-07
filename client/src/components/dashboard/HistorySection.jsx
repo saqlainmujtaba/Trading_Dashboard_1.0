@@ -365,8 +365,8 @@ const HistorySection = ({
               ) : isTextImport && !importRows.length && !importResult ? (
                 <div className="trade-text-import">
                   <label className="field-group">
-                    <span>Paste a Markdown table, CSV, or tab-separated trade history</span>
-                    <textarea rows="9" value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="Paste the table with its column headings and trade rows" />
+                    <span>Paste a table, CSV, tab-separated text, or one-field-per-line history</span>
+                    <textarea rows="9" value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="Paste the headings and trade rows, including Ticket, Open/Close Time, Symbol, Side, Volume, and Profit" />
                   </label>
                   <button type="button" className="secondary-btn" disabled={!importText.trim()} onClick={parsePastedTradeText}>Read pasted trades</button>
                 </div>

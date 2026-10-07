@@ -82,6 +82,16 @@ const parseDate = (value) => {
   }
   const yearFirst = text.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
   if (yearFirst) return `${yearFirst[1]}-${yearFirst[2].padStart(2, '0')}-${yearFirst[3].padStart(2, '0')}`;
+  const monthNameDate = text.match(/^(\d{1,2})\s+([a-z]{3})['’](\d{2,4})/i);
+  if (monthNameDate) {
+    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const month = months.indexOf(monthNameDate[2].toLowerCase()) + 1;
+    if (month) {
+      const rawYear = monthNameDate[3];
+      const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+      return `${year}-${String(month).padStart(2, '0')}-${monthNameDate[1].padStart(2, '0')}`;
+    }
+  }
   const dayFirst = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
   if (dayFirst) {
     const first = Number(dayFirst[1]);
@@ -398,10 +408,42 @@ export const parseTradeFile = async (file) => {
 
 export const parseTradeText = (text) => {
   if (String(text || '').length > 2 * 1024 * 1024) throw new Error('Paste a text file smaller than 2 MB.');
-  const result = normalizeTradeRows(extractTradeRecords(parseDelimitedText(text)));
+  const stacked = extractStackedTradeRecords(text);
+  const result = normalizeTradeRows(stacked?.records || extractTradeRecords(parseDelimitedText(text)));
+  if (stacked) result.rejectedCount += stacked.rejectedCount;
   if (!result.trades.length) throw new Error('No complete trades were found. Check that the pasted text includes date, symbol, direction, and prices or profit.');
   if (result.trades.length > 1000) throw new Error('This text contains more than 1,000 trades. Use a smaller date range.');
   return result;
+};
+
+const extractStackedTradeRecords = (text) => {
+  const headers = ['ticket', 'opentimeutc', 'openprice', 'closetimeutc', 'closeprice', 'side', 'symbol', 'volume', 'grossprofit'];
+  const lines = String(text || '').split(/\r?\n/)
+    .map((line) => line.replace(/^\s*\|\s*|\s*\|\s*$/g, '').replace(/^\s*\*\*(.*?)\*\*\s*$/s, '$1').trim())
+    .filter(Boolean);
+  const headerIndex = lines.findIndex((line, index) => headers.every((header, offset) => normalizeHeader(lines[index + offset]) === header));
+  if (headerIndex < 0) return null;
+
+  const fieldNames = ['Ticket', 'Open Time (UTC)', 'Open Price', 'Close Time (UTC)', 'Close Price', 'Side', 'Symbol', 'Volume', 'Gross Profit'];
+  const records = [];
+  let currentValues = [];
+  let rejectedCount = 0;
+  lines.slice(headerIndex + headers.length).forEach((line) => {
+    const normalized = normalizeHeader(line);
+    if (normalized === 'download' || normalized === 'winlosscard') return;
+    if (currentValues.length === 0 && !/^\d+$/.test(line)) return;
+    if (currentValues.length > 0 && /^\d+$/.test(line)) {
+      rejectedCount += 1;
+      currentValues = [];
+    }
+    currentValues.push(line);
+    if (currentValues.length === fieldNames.length) {
+      records.push(Object.fromEntries(fieldNames.map((field, index) => [field, currentValues[index]])));
+      currentValues = [];
+    }
+  });
+  if (currentValues.length) rejectedCount += 1;
+  return { records, rejectedCount };
 };
 
 const getOcrLines = (tsv) => {
