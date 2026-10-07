@@ -3,7 +3,7 @@ import FormField from "../common/FormField";
 import Skeleton from '../common/Skeleton';
 import SortControl from '../common/SortControl';
 import { sortRows } from '../common/sortRows';
-import { parseTradeFile, parseTradeImage } from '../../utils/tradeImport';
+import { parseTradeFile, parseTradeImage, parseTradeText } from '../../utils/tradeImport';
 import SharePanel from '../common/SharePanel';
 import ActionIcon from '../common/ActionIcon';
 import { filterTradeHistory, payoutHistoryShareItem, payoutShareItem, tradeHistoryShareItem, tradeShareItem } from '../../utils/shareSnapshots';
@@ -82,6 +82,8 @@ const HistorySection = ({
   const [selectedTradeIds, setSelectedTradeIds] = useState([]);
   const [payoutSortBy, setPayoutSortBy] = useState('date.desc');
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isTextImport, setIsTextImport] = useState(false);
+  const [importText, setImportText] = useState('');
   const [isParsingImport, setIsParsingImport] = useState(false);
   const [importProgress, setImportProgress] = useState('');
   const [isImportingTrades, setIsImportingTrades] = useState(false);
@@ -146,6 +148,7 @@ const HistorySection = ({
     setImportError('');
     setImportResult('');
     setImportProgress('');
+    setIsTextImport(false);
     try {
       const result = await parseTradeFile(file);
       setImportRows(result.trades);
@@ -170,6 +173,7 @@ const HistorySection = ({
     setImportAccount(activeAccountOptions[0] || '');
     setImportError('');
     setImportResult('');
+    setIsTextImport(false);
     setImportProgress('Starting screenshot reader...');
     try {
       const result = await parseTradeImage(file, setImportProgress);
@@ -180,6 +184,35 @@ const HistorySection = ({
     } finally {
       setIsParsingImport(false);
       setImportProgress('');
+    }
+  };
+
+  const openTradeTextImport = () => {
+    setIsImportOpen(true);
+    setIsTextImport(true);
+    setIsParsingImport(false);
+    setImportFileName('Pasted trade history');
+    setImportRows([]);
+    setImportSkippedCount(0);
+    setImportAccount(activeAccountOptions[0] || '');
+    setImportText('');
+    setImportError('');
+    setImportResult('');
+    setImportProgress('');
+  };
+
+  const parsePastedTradeText = () => {
+    setIsParsingImport(true);
+    setImportError('');
+    setImportResult('');
+    try {
+      const result = parseTradeText(importText);
+      setImportRows(result.trades);
+      setImportSkippedCount(result.rejectedCount);
+    } catch (error) {
+      setImportError(error.message || 'Could not read this trade-history text.');
+    } finally {
+      setIsParsingImport(false);
     }
   };
 
@@ -238,10 +271,11 @@ const HistorySection = ({
           <h2>Trade History</h2>
           <div className="section-actions">
             <SortControl value={tradeSortBy} options={tradeSortOptions} onChange={setTradeSortBy} label="Sort trades" />
-            <input ref={importFileRef} className="visually-hidden" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleTradeFile} />
+            <input ref={importFileRef} className="visually-hidden" type="file" accept=".csv,.xlsx,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleTradeFile} />
             <input ref={importImageRef} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleTradeScreenshot} />
-            <button type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel</button>
+            <button type="button" className="secondary-btn" onClick={() => importFileRef.current?.click()}>Import CSV / Excel / Text</button>
             <button type="button" className="secondary-btn" onClick={() => importImageRef.current?.click()}>Import MT5 screenshot</button>
+            <button type="button" className="secondary-btn" onClick={openTradeTextImport}>Paste trade text</button>
             <button
               type="button"
               className="primary-btn"
@@ -327,7 +361,15 @@ const HistorySection = ({
               </div>
               <p className="import-file-name">{importFileName}</p>
               {isParsingImport ? (
-                <p className="empty-state">Reading screenshot and matching MT5 columns... {importProgress}</p>
+                  <p className="empty-state">{isScreenshotImport ? `Reading screenshot and matching trade columns... ${importProgress}` : 'Reading trade-history file...'}</p>
+              ) : isTextImport && !importRows.length && !importResult ? (
+                <div className="trade-text-import">
+                  <label className="field-group">
+                    <span>Paste a Markdown table, CSV, or tab-separated trade history</span>
+                    <textarea rows="9" value={importText} onChange={(event) => setImportText(event.target.value)} placeholder="Paste the table with its column headings and trade rows" />
+                  </label>
+                  <button type="button" className="secondary-btn" disabled={!importText.trim()} onClick={parsePastedTradeText}>Read pasted trades</button>
+                </div>
               ) : (
                 <>
                   <div className="import-summary">

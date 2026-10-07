@@ -1426,6 +1426,9 @@ tbody tr:hover { background: var(--primary-soft); }
   max-width: 420px;
   margin-bottom: 14px;
 }
+.trade-text-import { display: grid; gap: 12px; }
+.trade-text-import textarea { width: 100%; min-height: 180px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-alt); color: var(--text); font: inherit; resize: vertical; }
+.trade-text-import textarea:focus { outline: none; border-color: rgba(37, 99, 235, 0.5); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); background: var(--panel); }
 .import-preview-table {
   max-height: 260px;
   overflow: auto;

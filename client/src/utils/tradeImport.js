@@ -87,7 +87,7 @@ const parseDate = (value) => {
     const first = Number(dayFirst[1]);
     const second = Number(dayFirst[2]);
     const month = first > 12 ? second : first;
-    const day = first > 12 ? first : second > 12 ? first : second;
+    const day = first > 12 ? first : second;
     return `${dayFirst[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
   const normalized = text
@@ -125,7 +125,9 @@ const makeTrade = (row, overrides = {}) => {
   const importedPnl = parseNumber(overrides.pnl ?? readValue(row, 'pnl'));
   const pnlColumn = Object.keys(row).find((column) => columnAliases.pnl.includes(normalizeHeader(column)));
   const pnlIsNet = pnlColumn && ['netprofit', 'netpnl', 'realizedpnl', 'realizedprofit', 'profitloss', 'pnl'].includes(normalizeHeader(pnlColumn));
-  const costs = (parseNumber(readValue(row, 'commission')) || 0) + (parseNumber(readValue(row, 'swap')) || 0);
+  const commission = parseNumber(readValue(row, 'commission')) || 0;
+  const swap = parseNumber(readValue(row, 'swap')) || 0;
+  const costs = -Math.abs(commission) + swap;
   const pnl = importedPnl == null ? undefined : pnlIsNet ? importedPnl : importedPnl + costs;
   if (!date || !pair || !buySell || (entryPrice == null && exitPrice == null && pnl == null)) return null;
 
@@ -157,7 +159,7 @@ const makeTrade = (row, overrides = {}) => {
 
 export const parseDelimitedText = (text) => {
   const firstLine = String(text).replace(/^\uFEFF/, '').split(/\r?\n/, 1)[0] || '';
-  const delimiters = [',', ';', '\t'];
+  const delimiters = ['|', '\t', ';', ','];
   const delimiter = delimiters
     .map((character) => ({ character, count: firstLine.split(character).length - 1 }))
     .sort((first, second) => second.count - first.count)[0].character;
@@ -177,11 +179,11 @@ export const parseDelimitedText = (text) => {
         quoted = !quoted;
       }
     } else if (character === delimiter && !quoted) {
-      row.push(field);
+      row.push(field.replace(/<br\s*\/?>/gi, ' ').replace(/^\s*\*\*(.*?)\*\*\s*$/s, '$1').trim());
       field = '';
     } else if ((character === '\n' || character === '\r') && !quoted) {
       if (character === '\r' && source[index + 1] === '\n') index += 1;
-      row.push(field);
+      row.push(field.replace(/<br\s*\/?>/gi, ' ').replace(/^\s*\*\*(.*?)\*\*\s*$/s, '$1').trim());
       if (row.some((value) => String(value).trim())) rows.push(row);
       row = [];
       field = '';
@@ -189,7 +191,7 @@ export const parseDelimitedText = (text) => {
       field += character;
     }
   }
-  row.push(field);
+  row.push(field.replace(/<br\s*\/?>/gi, ' ').replace(/^\s*\*\*(.*?)\*\*\s*$/s, '$1').trim());
   if (row.some((value) => String(value).trim())) rows.push(row);
   return rows;
 };
@@ -235,9 +237,23 @@ export const extractTradeRecords = (matrix) => {
     if (tableEnd < 0) tableEnd = matrix.length;
   }
 
+  const symbolIndex = headers.findIndex((header) => columnAliases.pair.includes(normalizeHeader(header)));
   return matrix.slice(headerIndex + 1, tableEnd)
     .filter((row) => row.some((value) => String(value ?? '').trim()))
-    .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
+    .map((sourceValues) => {
+      const values = [...sourceValues];
+      const shiftedSide = parseSide(values[symbolIndex + 2]);
+      const currentSide = parseSide(values[symbolIndex + 1]);
+      const shiftedSymbol = String(values[symbolIndex + 1] || '').trim();
+      const isExtraTradeLabel = values.length > headers.length
+        && symbolIndex >= 0
+        && shiftedSide
+        && !currentSide
+        && !parseDate(values[symbolIndex])
+        && /^[A-Z0-9._-]+$/i.test(shiftedSymbol);
+      if (isExtraTradeLabel) values.splice(symbolIndex, 1);
+      return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
+    });
 };
 
 const isOpenDeal = (value) => /^(in|open|entry|inout)$/.test(normalizeHeader(value));
@@ -377,6 +393,14 @@ export const parseTradeFile = async (file) => {
   const result = normalizeTradeRows(extractTradeRecords(matrix));
   if (!result.trades.length) throw new Error('No complete trades were found. Check that the export includes date, symbol, direction, and prices or profit.');
   if (result.trades.length > 1000) throw new Error('This file contains more than 1,000 trades. Export a smaller date range and try again.');
+  return result;
+};
+
+export const parseTradeText = (text) => {
+  if (String(text || '').length > 2 * 1024 * 1024) throw new Error('Paste a text file smaller than 2 MB.');
+  const result = normalizeTradeRows(extractTradeRecords(parseDelimitedText(text)));
+  if (!result.trades.length) throw new Error('No complete trades were found. Check that the pasted text includes date, symbol, direction, and prices or profit.');
+  if (result.trades.length > 1000) throw new Error('This text contains more than 1,000 trades. Use a smaller date range.');
   return result;
 };
 
