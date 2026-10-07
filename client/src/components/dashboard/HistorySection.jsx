@@ -621,7 +621,7 @@ const HistorySection = ({
                   <td colSpan="16"><Skeleton className="skeleton-table-row" /></td>
                 </tr>
               )) : visibleTrades.length ? visibleTrades.map((trade) => (
-                <tr key={trade._id}>
+                <tr key={trade._id} className={selectedTradeIds.includes(trade._id) ? 'history-trade-selected' : undefined}>
                   <td><input className="history-select-checkbox" type="checkbox" aria-label={`Select trade from ${trade.account} on ${trade.date}`} checked={selectedTradeIds.includes(trade._id)} onChange={() => setSelectedTradeIds((ids) => ids.includes(trade._id) ? ids.filter((id) => id !== trade._id) : [...ids, trade._id])} /></td>
                   <td>{trade.date}</td>
                   <td>{trade.account}</td>
