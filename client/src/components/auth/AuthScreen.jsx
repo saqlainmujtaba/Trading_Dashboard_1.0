@@ -36,7 +36,7 @@ const AuthScreen = ({ onAuthSuccess }) => {
         completeAuth(response.data);
       } else if (view === 'register') {
         if (!form.name.trim() || !form.password) throw new Error('Enter your name and password.');
-        const response = await api.post('/auth/register', { name: form.name.trim(), email, password: form.password });
+        const response = await api.post('/auth/register', { name: form.name.trim(), email, password: form.password }, { timeout: 75_000 });
         setView('verify-email');
         setForm((current) => ({ ...current, password: '' }));
         setNotice(response.data.message || `We sent a six-digit verification code to ${email}.`);
@@ -62,7 +62,7 @@ const AuthScreen = ({ onAuthSuccess }) => {
         setView('verify-email');
         setForm((current) => ({ ...current, password: '' }));
       }
-      setError(requestError.response?.data?.message || requestError.message || 'Authentication failed. Please try again.');
+      setError(requestError.response?.data?.message || (requestError.code === 'ECONNABORTED' ? 'The request timed out. Check that the backend is awake and its Gmail SMTP settings allow email delivery.' : requestError.message) || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -20,6 +20,10 @@ export const sendAuthCodeEmail = async ({ to, name, code, purpose }) => {
       port,
       secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
+      dnsTimeout: 5_000,
     });
   }
 
@@ -29,11 +33,16 @@ export const sendAuthCodeEmail = async ({ to, name, code, purpose }) => {
   const greeting = String(name || 'Trader').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
 
-  await transporter.sendMail({
-    from: `${appName} <${from}>`,
-    to,
-    subject,
-    text: `Hi ${name || 'Trader'},\n\nYour ${purpose} code is ${code}. It expires in 10 minutes. If you did not request this, you can ignore this email.`,
-    html: `<p>Hi ${greeting},</p><p>Your ${purpose} code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>`,
-  });
+  try {
+    await transporter.sendMail({
+      from: `${appName} <${from}>`,
+      to,
+      subject,
+      text: `Hi ${name || 'Trader'},\n\nYour ${purpose} code is ${code}. It expires in 10 minutes. If you did not request this, you can ignore this email.`,
+      html: `<p>Hi ${greeting},</p><p>Your ${purpose} code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>`,
+    });
+  } catch (error) {
+    console.error('SMTP send failed:', error.code || error.name, error.message);
+    throw error;
+  }
 };
