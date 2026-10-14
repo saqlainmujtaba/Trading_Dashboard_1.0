@@ -53,6 +53,31 @@ const App = () => {
   const loadingSectionCounts = useRef({});
 
   useEffect(() => {
+    let timeoutId;
+    let isMounted = true;
+
+    const scheduleHealthCheck = () => {
+      const delay = (10 + Math.random() * 5) * 60 * 1000;
+      timeoutId = window.setTimeout(async () => {
+        try {
+          await api.get('/health');
+        } catch (error) {
+          // Keep trying on the next randomized interval if the API is temporarily unavailable.
+          console.warn('Backend keep-alive request failed:', error.message);
+        }
+
+        if (isMounted) scheduleHealthCheck();
+      }, delay);
+    };
+
+    scheduleHealthCheck();
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
     document.body.dataset.theme = theme;
     localStorage.setItem('theme', theme);
   }, [theme]);
