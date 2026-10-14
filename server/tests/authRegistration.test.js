@@ -18,22 +18,31 @@ const invoke = async (handler, body) => {
   return response;
 };
 
-test('registration creates an account and returns a session without email verification', async () => {
+test('registration requires email delivery and blocks unverified login', async () => {
   const email = `signup-${Date.now()}@example.test`;
   const password = 'secure-password';
+  const smtpKeys = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'];
+  const previousValues = Object.fromEntries(smtpKeys.map((key) => [key, process.env[key]]));
+  smtpKeys.forEach((key) => { delete process.env[key]; });
 
-  const registration = await invoke(registerUser, {
-    name: 'Registration Tester',
-    email,
-    password,
-  });
+  try {
+    const registration = await invoke(registerUser, {
+      name: 'Registration Tester',
+      email,
+      password,
+    });
 
-  assert.equal(registration.statusCode, 201);
-  assert.equal(registration.body.email, email);
-  assert.ok(registration.body.token);
+    assert.equal(registration.statusCode, 503);
+    assert.equal(registration.body.requiresEmailVerification, true);
+    assert.equal(registration.body.token, undefined);
 
-  const login = await invoke(loginUser, { email, password });
-  assert.equal(login.statusCode, 200);
-  assert.equal(login.body.email, email);
-  assert.ok(login.body.token);
+    const login = await invoke(loginUser, { email, password });
+    assert.equal(login.statusCode, 403);
+    assert.equal(login.body.code, 'EMAIL_NOT_VERIFIED');
+  } finally {
+    smtpKeys.forEach((key) => {
+      if (previousValues[key] === undefined) delete process.env[key];
+      else process.env[key] = previousValues[key];
+    });
+  }
 });

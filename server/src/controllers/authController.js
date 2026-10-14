@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import mongoose from 'mongoose';
 import createAuthToken from '../config/authToken.js';
 import Account from '../models/Account.js';
@@ -7,10 +7,14 @@ import Payout from '../models/Payout.js';
 import PlannedAccount from '../models/PlannedAccount.js';
 import Trade from '../models/Trade.js';
 import User from '../models/User.js';
+import { isEmailConfigured, sendAuthCodeEmail } from '../config/email.js';
 import { removeInMemoryDashboardData, seedInMemoryDemoData } from './dashboardController.js';
 
 const inMemoryUsers = [];
 const DEMO_LIFETIME_MS = 10 * 24 * 60 * 60 * 1000;
+const OTP_LIFETIME_MS = 10 * 60 * 1000;
+const OTP_RESEND_DELAY_MS = 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
 const profileFields = [
   'fullName',
   'tradingAlias',
@@ -48,6 +52,59 @@ const removeDemoUserData = async (userIds) => Promise.all([
   Trade.deleteMany({ user: { $in: userIds } }),
   Payout.deleteMany({ user: { $in: userIds } }),
 ]);
+
+const findAccountByEmail = async (email) => {
+  if (mongoose.connection.readyState === 1) {
+    return User.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+  }
+  return inMemoryUsers.find((item) => item.email.toLowerCase() === email);
+};
+
+const saveAccount = async (user) => {
+  if (mongoose.connection.readyState === 1) await user.save();
+};
+
+const hashOtp = (email, purpose, code) => createHmac('sha256', process.env.JWT_SECRET || 'dev-secret')
+  .update(`${email.toLowerCase()}:${purpose}:${code}`)
+  .digest('hex');
+
+const issueOtp = async (user, purpose) => {
+  if (!isEmailConfigured()) {
+    const error = new Error('Email service is not configured. Ask the administrator to configure Gmail SMTP.');
+    error.statusCode = 503;
+    throw error;
+  }
+  const prefix = purpose === 'email verification' ? 'emailVerification' : 'passwordReset';
+  const sentAt = user[`${prefix}SentAt`];
+  if (sentAt && Date.now() - new Date(sentAt).getTime() < OTP_RESEND_DELAY_MS) {
+    const error = new Error('Please wait a minute before requesting another code.');
+    error.statusCode = 429;
+    throw error;
+  }
+
+  const code = String(randomInt(100000, 1000000));
+  user[`${prefix}CodeHash`] = hashOtp(user.email, purpose, code);
+  user[`${prefix}ExpiresAt`] = new Date(Date.now() + OTP_LIFETIME_MS);
+  user[`${prefix}SentAt`] = new Date();
+  user[`${prefix}Attempts`] = 0;
+  await saveAccount(user);
+  try {
+    await sendAuthCodeEmail({ to: user.email, name: user.name, code, purpose });
+  } catch (error) {
+    user[`${prefix}CodeHash`] = '';
+    user[`${prefix}ExpiresAt`] = null;
+    user[`${prefix}SentAt`] = null;
+    await saveAccount(user);
+    throw error;
+  }
+};
+
+const isOtpValid = (storedHash, email, purpose, code) => {
+  if (!storedHash || typeof code !== 'string' || !/^\d{6}$/.test(code)) return false;
+  const submittedHash = Buffer.from(hashOtp(email, purpose, code), 'hex');
+  const savedHash = Buffer.from(storedHash, 'hex');
+  return submittedHash.length === savedHash.length && timingSafeEqual(submittedHash, savedHash);
+};
 
 export const purgeExpiredDemoAccounts = async (now = new Date()) => {
   if (mongoose.connection.readyState === 1) {
@@ -287,19 +344,23 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: await bcrypt.hash(password, 10),
+      isEmailVerified: false,
     };
     const user = mongoose.connection.readyState === 1
       ? await User.create(userData)
       : { ...userData, _id: `local-${randomUUID()}` };
     if (mongoose.connection.readyState !== 1) inMemoryUsers.push(user);
 
-    return res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role || 'user',
-      token: createAuthToken(user),
-    });
+    try {
+      await issueOtp(user, 'email verification');
+    } catch (error) {
+      return res.status(error.statusCode || 503).json({
+        message: error.message || 'Could not send verification email.',
+        requiresEmailVerification: true,
+      });
+    }
+
+    return res.status(202).json({ requiresEmailVerification: true, email: user.email });
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ message: 'User already exists' });
     return res.status(500).json({ message: 'Could not create account.', error: error.message });
@@ -330,6 +391,9 @@ export const loginUser = async (req, res) => {
       if (!isMatch) {
         return res.status(401).json({ message: 'Invalid email or password' });
       }
+      if (user.isEmailVerified === false) {
+        return res.status(403).json({ message: 'Verify your email with the code we sent before signing in.', code: 'EMAIL_NOT_VERIFIED' });
+      }
 
       return res.json({
         _id: user._id,
@@ -350,6 +414,9 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+    if (user.isEmailVerified === false) {
+      return res.status(403).json({ message: 'Verify your email with the code we sent before signing in.', code: 'EMAIL_NOT_VERIFIED' });
+    }
     await seedDemoContent(user);
 
     res.json({
@@ -361,6 +428,105 @@ export const loginUser = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Login failed', error: error.message });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const code = String(req.body?.code ?? '').trim();
+  if (!email || !/^\d{6}$/.test(code)) return res.status(400).json({ message: 'Enter the email address and six-digit code.' });
+
+  try {
+    const user = await findAccountByEmail(email);
+    if (!user) return res.status(400).json({ message: 'The code is invalid or expired.' });
+    if (user.isEmailVerified !== false) return res.status(400).json({ message: 'This email is already verified. Please log in.' });
+    if (user.emailVerificationAttempts >= OTP_MAX_ATTEMPTS) return res.status(429).json({ message: 'Too many incorrect codes. Request a new code.' });
+    if (!user.emailVerificationExpiresAt || new Date(user.emailVerificationExpiresAt) <= new Date()) {
+      return res.status(400).json({ message: 'The code is invalid or expired. Request a new code.' });
+    }
+
+    if (!isOtpValid(user.emailVerificationCodeHash, email, 'email verification', code)) {
+      user.emailVerificationAttempts = (user.emailVerificationAttempts || 0) + 1;
+      await saveAccount(user);
+      return res.status(400).json({ message: 'The code is invalid or expired.' });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationCodeHash = '';
+    user.emailVerificationExpiresAt = null;
+    await saveAccount(user);
+    return res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role || 'user',
+      token: createAuthToken(user),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Could not verify email.', error: error.message });
+  }
+};
+
+export const resendVerificationCode = async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!email) return res.status(400).json({ message: 'Enter your email address.' });
+  try {
+    const user = await findAccountByEmail(email);
+    if (user && user.isEmailVerified === false) await issueOtp(user, 'email verification');
+    return res.json({ message: 'If the account needs verification, a new code has been sent.' });
+  } catch (error) {
+    if (error.statusCode === 429) {
+      return res.json({ message: 'If the account needs verification, a new code has been sent.' });
+    }
+    return res.status(error.statusCode || 503).json({ message: error.message || 'Could not send verification email.' });
+  }
+};
+
+export const requestPasswordReset = async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!email) return res.status(400).json({ message: 'Enter your email address.' });
+  if (!isEmailConfigured()) return res.status(503).json({ message: 'Email service is not configured. Ask the administrator to configure Gmail SMTP.' });
+  try {
+    const user = await findAccountByEmail(email);
+    if (user && user.isEmailVerified !== false) {
+      try { await issueOtp(user, 'password reset'); }
+      catch (error) {
+        if (error.statusCode !== 429) console.error('Password reset email failed:', error.message);
+      }
+    }
+    return res.json({ message: 'If a verified account uses that email, a password reset code has been sent.' });
+  } catch (error) {
+    console.error('Password reset request failed:', error.message);
+    return res.json({ message: 'If a verified account uses that email, a password reset code has been sent.' });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const code = String(req.body?.code ?? '').trim();
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!email || !/^\d{6}$/.test(code) || password.length < 8) {
+    return res.status(400).json({ message: 'Enter the six-digit code and a password with at least 8 characters.' });
+  }
+  try {
+    const user = await findAccountByEmail(email);
+    if (!user || user.isEmailVerified === false || user.passwordResetAttempts >= OTP_MAX_ATTEMPTS
+      || !user.passwordResetExpiresAt || new Date(user.passwordResetExpiresAt) <= new Date()) {
+      return res.status(400).json({ message: 'The code is invalid or expired. Request a new code.' });
+    }
+    if (!isOtpValid(user.passwordResetCodeHash, email, 'password reset', code)) {
+      user.passwordResetAttempts = (user.passwordResetAttempts || 0) + 1;
+      await saveAccount(user);
+      return res.status(400).json({ message: 'The code is invalid or expired.' });
+    }
+    user.password = await bcrypt.hash(password, 10);
+    user.passwordResetCodeHash = '';
+    user.passwordResetExpiresAt = null;
+    user.passwordResetAttempts = 0;
+    await saveAccount(user);
+    return res.json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Could not reset password.', error: error.message });
   }
 };
 

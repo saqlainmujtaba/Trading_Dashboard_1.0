@@ -115,9 +115,20 @@ NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/personal-trading-dashboard
 JWT_SECRET=your_secret_key
 CLIENT_URL=http://localhost:5173
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your-gmail-address@gmail.com
+SMTP_PASS=your-google-app-password-without-spaces
+SMTP_FROM=your-gmail-address@gmail.com
+APP_NAME=Personal Trading Dashboard
 ```
 
-Email verification and OTP-based password recovery are currently disabled. For deployment, set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, and the deployed frontend origin as `CLIENT_URL`. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Do not commit production secrets.
+Email verification is required for new accounts. Password recovery also sends a one-time code. Codes expire after 10 minutes, are stored as keyed hashes, and allow at most five verification attempts; sending another code is limited to once per minute. Existing accounts without a verification field remain usable.
+
+For Gmail SMTP, enable 2-Step Verification on the sending Google Account and create an App Password. Use that app password as `SMTP_PASS`, without spaces; do not use the normal Google account password. Google only offers App Passwords on eligible accounts with 2-Step Verification enabled. See [Google's App Password instructions](https://support.google.com/accounts/answer/185833) and [Gmail's SMTP settings](https://support.google.com/mail/answer/7104828).
+
+Set these values in `server/.env` for local development and in the backend service's environment settings on Render. For deployment, also set `NODE_ENV=production`, a strong `JWT_SECRET`, your MongoDB Atlas connection string as `MONGO_URI`, and the deployed frontend origin as `CLIENT_URL`. `CLIENT_URL` can contain comma-separated origins if you need to allow more than one. Never commit production secrets.
 
 ## Run the Application
 
