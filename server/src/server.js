@@ -17,6 +17,29 @@ const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .filter(Boolean);
 const androidAssetOrigin = 'https://appassets.androidplatform.net';
 
+const startRenderKeepAlive = () => {
+  const serviceUrl = process.env.RENDER_EXTERNAL_URL;
+  if (!serviceUrl) return;
+
+  const schedulePing = () => {
+    const delay = (10 + Math.random() * 5) * 60 * 1000;
+    setTimeout(async () => {
+      try {
+        const response = await fetch(`${serviceUrl}/api/health`);
+        if (!response.ok) {
+          console.warn(`Render keep-alive request returned ${response.status}`);
+        }
+      } catch (error) {
+        console.warn('Render keep-alive request failed:', error.message);
+      }
+
+      schedulePing();
+    }, delay).unref();
+  };
+
+  schedulePing();
+};
+
 app.use(cors({
   exposedHeaders: ['X-Auth-Token'],
   origin(origin, callback) {
@@ -48,6 +71,7 @@ const startServer = async () => {
 
   await connectDB();
   await purgeExpiredDemoAccounts();
+  startRenderKeepAlive();
   setInterval(() => {
     purgeExpiredDemoAccounts().catch((error) => console.error('Demo account cleanup failed:', error.message));
   }, 60 * 1000).unref();
