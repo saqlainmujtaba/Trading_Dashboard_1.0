@@ -107,6 +107,8 @@ const Sidebar = ({ user, theme, onToggleTheme, onLogout }) => {
           <Link className={isPageActive('/analytics') ? 'nav-link-active' : ''} to="/analytics" onClick={handleNavClick} aria-current={isPageActive('/analytics') ? 'page' : undefined}>Analytics</Link>
           <Link className={isPageActive('/calculator') ? 'nav-link-active' : ''} to="/calculator" onClick={handleNavClick} aria-current={isPageActive('/calculator') ? 'page' : undefined}>Calculator</Link>
           <Link className={isPageActive('/profile') ? 'nav-link-active' : ''} to="/profile" onClick={handleNavClick} aria-current={isPageActive('/profile') ? 'page' : undefined}>Profile</Link>
+          <Link className={isPageActive('/community') ? 'nav-link-active' : ''} to="/community" onClick={handleNavClick} aria-current={isPageActive('/community') ? 'page' : undefined}>Community</Link>
+          {user?.role === 'admin' && <Link className={isPageActive('/admin') ? 'nav-link-active' : ''} to="/admin" onClick={handleNavClick} aria-current={isPageActive('/admin') ? 'page' : undefined}>Admin</Link>}
         </div>
 
         <div className="mobile-sidebar-footer">

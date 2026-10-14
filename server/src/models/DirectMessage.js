@@ -1,0 +1,10 @@
+import mongoose from 'mongoose';
+
+const directMessageSchema = new mongoose.Schema({
+  from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  to: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  text: { type: String, required: true, maxlength: 4000, trim: true },
+}, { timestamps: true });
+
+directMessageSchema.index({ from: 1, to: 1, createdAt: 1 });
+export default mongoose.model('DirectMessage', directMessageSchema);

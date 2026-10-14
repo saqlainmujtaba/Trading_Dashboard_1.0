@@ -6,6 +6,8 @@ import DashboardLayout from './components/dashboard/DashboardLayout';
 import ProfilePage from './components/dashboard/ProfilePage';
 import TourGuide from './components/common/TourGuide';
 import SharePublicRoute from './components/common/SharePublicRoute';
+import AdminPage from './components/dashboard/AdminPage';
+import CommunityPage from './components/dashboard/CommunityPage';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
 const CalculatorPage = lazy(() => import('./components/dashboard/CalculatorPage'));
@@ -235,6 +237,8 @@ const App = () => {
     <>
       <Routes>
       <Route path="/share/:token" element={<SharePublicRoute />} />
+      <Route path="/community" element={user ? <CommunityPage user={user} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/" replace />} />
+      <Route path="/admin" element={user?.role === 'admin' ? <AdminPage user={user} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/" replace />} />
       <Route
         path="/"
         element={user ? dashboardPage : <AuthScreen onAuthSuccess={handleAuthSuccess} />}

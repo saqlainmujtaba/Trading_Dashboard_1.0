@@ -297,6 +297,7 @@ export const registerUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      role: user.role || 'user',
       token: createAuthToken(user),
     });
   } catch (error) {
@@ -334,6 +335,7 @@ export const loginUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role || 'user',
         token: createAuthToken(user),
       });
     }
@@ -354,6 +356,7 @@ export const loginUser = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      role: user.role || 'user',
       token: createAuthToken(user),
     });
   } catch (error) {
@@ -370,6 +373,7 @@ export const createDemoSession = async (_req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      role: user.role || 'user',
       demoExpiresAt: user.expiresAt,
       token: createAuthToken(user),
     });
@@ -379,11 +383,13 @@ export const createDemoSession = async (_req, res) => {
 };
 
 export const getMe = async (req, res) => {
-  res.json({
-    _id: req.user.id,
-    name: req.user.name,
-    email: req.user.email,
-  });
+  try {
+    const user = await findUserById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ _id: user._id, name: user.name, email: user.email, role: user.role || 'user' });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not load user account', error: error.message });
+  }
 };
 
 export const getTraderProfile = async (req, res) => {

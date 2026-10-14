@@ -12,7 +12,7 @@ const AuthScreen = ({ onAuthSuccess }) => {
 
   const completeAuth = (userData) => {
     localStorage.setItem('token', userData.token);
-    localStorage.setItem('user', JSON.stringify({ name: userData.name, email: userData.email }));
+    localStorage.setItem('user', JSON.stringify({ name: userData.name, email: userData.email, role: userData.role || 'user' }));
     onAuthSuccess(userData);
     navigate('/');
   };

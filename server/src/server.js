@@ -5,6 +5,8 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import shareRoutes from './routes/shareRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import communityRoutes from './routes/communityRoutes.js';
 import { purgeExpiredDemoAccounts } from './controllers/authController.js';
 
 dotenv.config();
@@ -63,6 +65,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/shares', shareRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/community', communityRoutes);
 
 const startServer = async () => {
   if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {

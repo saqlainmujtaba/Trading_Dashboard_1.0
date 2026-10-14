@@ -192,6 +192,18 @@ The server exposes endpoints for:
 - planned account management
 - trade records
 - payout records
+- role-protected admin user and account-data management
+- trader discovery, friend requests, and direct messages
+
+### Admin and Community
+New registered accounts receive the `user` role. To promote the first admin, update that account directly in MongoDB (replace the email and database name as needed):
+
+```javascript
+use personal-trading-dashboard
+db.users.updateOne({ email: "admin@example.com" }, { $set: { role: "admin" } })
+```
+
+The user should sign out and back in after promotion. Admin API access is checked against the current database role. Admins can inspect user profiles and their account, planned-account, trade, and payout records, and change user roles. The Community page lets users find traders, send or accept friend requests, and chat with friends. Admins can start a direct chat with any non-demo account; users can reply to an admin chat from Recent chats.
 
 ## Data Model Highlights
 
