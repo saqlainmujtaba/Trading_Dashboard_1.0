@@ -44,6 +44,7 @@ const getProfitPercent = (fundedAmount, balance, startingBalance) => {
 };
 
 const getStatusClass = (status) => String(status || 'unknown').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+const getAccountStage = (type) => (['2-Step', 'Evaluation'].includes(type) ? 'Challenge Phase 1' : (type || 'Instant'));
 
 const AccountSection = ({
   accounts,
@@ -141,13 +142,11 @@ const AccountSection = ({
                   <input value={accountForm.propFirm} onChange={(e) => setAccountForm({ ...accountForm, propFirm: e.target.value })} placeholder="e.g. FundedSquad" />
                 </FormField>
                 <FormField label="Account stage" hint="Challenge phases stay separate from funded capital">
-                  <select value={accountForm.type} onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}>
+                  <select value={getAccountStage(accountForm.type)} onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}>
                     <option>Instant</option>
                     <option>Challenge Phase 1</option>
                     <option>Challenge Phase 2</option>
                     <option>Funded</option>
-                    <option>2-Step</option>
-                    <option>Evaluation</option>
                   </select>
                 </FormField>
                 <FormField label="Account size" hint="Challenge size remains separate until the account reaches funded stage">
@@ -254,7 +253,7 @@ const AccountSection = ({
               <span className={`status-pill status-${getStatusClass(account.status)}`}>{account.status || 'Unknown'}</span>
             </div>
             <div className="detail-grid">
-              <div><label>Account type</label><p>{account.type}</p></div>
+              <div><label>Account stage</label><p>{getAccountStage(account.type)}</p></div>
               <div><label>Purchase date</label><p>{account.purchaseDate}</p></div>
               <div><label>Funded amount</label><p>{formatCurrency(account.fundedAmount)}</p></div>
               <div><label>Current balance</label><p>{formatCurrency(account.balance)}</p></div>
@@ -285,7 +284,7 @@ const AccountSection = ({
                 compact
                 showLabels
               />
-              <button className="secondary-btn icon-action-button" type="button" aria-label="Edit account" title="Edit account" onClick={() => { setAccountForm(account); setEditingAccountId(account._id); setShowAccountForm(true); }}><ActionIcon name="edit" /></button>
+              <button className="secondary-btn icon-action-button" type="button" aria-label="Edit account" title="Edit account" onClick={() => { setAccountForm({ ...account, type: getAccountStage(account.type) }); setEditingAccountId(account._id); setShowAccountForm(true); }}><ActionIcon name="edit" /></button>
               <button
                 className="danger-btn icon-action-button"
                 type="button"
