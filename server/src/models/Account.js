@@ -20,6 +20,7 @@ const accountSchema = new mongoose.Schema(
     nextPayoutDate: { type: String, default: '' },
     payoutReceived: { type: Number, default: 0 },
     status: { type: String, default: 'Active' },
+    archived: { type: Boolean, default: false },
     purchaseDate: { type: String, default: '' },
   },
   { timestamps: true }

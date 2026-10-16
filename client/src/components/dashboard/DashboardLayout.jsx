@@ -154,6 +154,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const stats = useMemo(() => ({
     totalAccounts: dashboardData?.stats?.totalAccounts || dashboardData?.accounts?.length || 0,
     activeAccounts: dashboardData?.stats?.activeAccounts || 0,
+    challengePassed: dashboardData?.stats?.challengePassed || 0,
     totalFunding: dashboardData?.stats?.totalFunding || 0,
     challengeFunding: dashboardData?.stats?.challengeFunding || 0,
     totalProfit: dashboardData?.stats?.totalProfit || 0,
@@ -168,7 +169,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const trades = dashboardData?.trades || [];
   const payouts = dashboardData?.payouts || [];
   const activeAccounts = useMemo(
-    () => accounts.filter((account) => account.status === 'Active'),
+    () => accounts.filter((account) => account.status === 'Active' && !account.archived),
     [accounts]
   );
   const monthlyReturnByAccount = useMemo(() => {
@@ -252,6 +253,15 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
     } finally {
       accountSubmitLock.current = false;
       setIsSavingAccount(false);
+    }
+  };
+
+  const setAccountArchived = async (account, archived) => {
+    try {
+      await api.put(`/dashboard/accounts/${account._id}`, { archived });
+      onRefresh(['accounts']);
+    } catch (error) {
+      console.error('Unable to update account archive state', error);
     }
   };
 
@@ -406,6 +416,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
           formatCurrency={formatCurrency}
           deleteAccount={deleteAccount}
           updateAccountField={updateAccountField}
+          setAccountArchived={setAccountArchived}
           showAccountForm={showAccountForm}
           setShowAccountForm={setShowAccountForm}
           confirmDelete={confirmDelete}

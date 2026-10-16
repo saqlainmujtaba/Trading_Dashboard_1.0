@@ -21,7 +21,7 @@ const PortfolioSection = ({ accounts = [], plannedAccounts = [], formatCurrency,
   const firms = [...new Set(accounts.map((account) => account.propFirm?.trim() || 'Unspecified firm'))];
   const summaries = firms.map((firm) => {
     const firmAccounts = accounts.filter((account) => (account.propFirm?.trim() || 'Unspecified firm') === firm);
-    const activeAccounts = firmAccounts.filter((account) => account.status === 'Active');
+    const activeAccounts = firmAccounts.filter((account) => account.status === 'Active' && !account.archived);
     return {
       firm,
       accountCount: firmAccounts.length,

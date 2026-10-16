@@ -15,7 +15,7 @@ const accountFields = [
   'name', 'propFirm', 'type', 'fundedAmount', 'balance', 'startingBalance',
   'forexLeverage', 'indicesLeverage', 'commoditiesLeverage', 'cryptoLeverage',
   'maxDailyLoss', 'maxOverallLoss', 'profitTarget', 'nextPayoutDate',
-  'payoutReceived', 'status', 'purchaseDate',
+  'payoutReceived', 'status', 'purchaseDate', 'archived',
 ];
 const plannedAccountFields = [
   'company', 'size', 'type', 'purchaseDate', 'cost', 'priority', 'notes', 'status',
@@ -45,6 +45,9 @@ const getFundingTotals = (accounts) => ({
   totalFunding: accounts.filter(isFundedAccount).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
   challengeFunding: accounts.filter((account) => !isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
 });
+const isChallengePassed = (account) => !isFundedAccount(account)
+  && Number(account.profitTarget) > 0
+  && Number(account.profitPercent ?? calculateProfitPercent(account)) >= Number(account.profitTarget);
 
 const calculateTradePnl = ({ entryPrice, exitPrice, lotSize, buySell, pair }) => {
   const direction = buySell === 'Sell' ? -1 : 1;
@@ -86,12 +89,12 @@ const hasAccountForUser = async (userId, accountName, activeOnly = false) => {
     return inMemoryData.accounts.some((account) =>
       account.user === userId
       && account.name === accountName
-      && (!activeOnly || account.status === 'Active')
+      && (!activeOnly || (account.status === 'Active' && !account.archived))
     );
   }
 
   const query = { user: userId, name: accountName };
-  if (activeOnly) query.status = 'Active';
+  if (activeOnly) { query.status = 'Active'; query.archived = { $ne: true }; }
   return Boolean(await Account.exists(query));
 };
 
@@ -149,10 +152,11 @@ const buildDashboardPayload = (userId) => {
     payouts,
     stats: {
       totalAccounts: accounts.length,
-      activeAccounts: accounts.filter((account) => account.status === 'Active').length,
+      activeAccounts: accounts.filter((account) => account.status === 'Active' && !account.archived).length,
+      challengePassed: accounts.filter(isChallengePassed).length,
       ...getFundingTotals(accounts),
       plannedFunding: plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0),
-      combinedFunding: accounts.filter((account) => account.status !== 'Failed' && isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
+      combinedFunding: accounts.filter((account) => account.status !== 'Failed' && !account.archived && isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
       totalProfit: trades.reduce((sum, trade) => sum + (Number(trade.pnl) || 0), 0),
       totalPayouts: payouts.reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0),
       failedAccounts: accounts.filter((account) => account.status === 'Failed').length,
@@ -273,11 +277,12 @@ export const getDashboardData = async (req, res) => {
       payouts,
       stats: {
         totalAccounts: accounts.length,
-        activeAccounts: accounts.filter((account) => account.status === 'Active').length,
+        activeAccounts: accounts.filter((account) => account.status === 'Active' && !account.archived).length,
+        challengePassed: accounts.filter(isChallengePassed).length,
         totalFunding,
         challengeFunding,
         plannedFunding,
-        combinedFunding: accounts.filter((account) => account.status !== 'Failed' && isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
+        combinedFunding: accounts.filter((account) => account.status !== 'Failed' && !account.archived && isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
         totalProfit,
         totalPayouts,
         failedAccounts: accounts.filter((account) => account.status === 'Failed').length,
@@ -473,8 +478,8 @@ export const importTrades = async (req, res) => {
     }
 
     const account = isMongoConnected()
-      ? await Account.findOne({ user: userId, name: accountName, status: 'Active' }).select('propFirm').lean()
-      : inMemoryData.accounts.find((item) => item.user === userId && item.name === accountName && item.status === 'Active');
+      ? await Account.findOne({ user: userId, name: accountName, status: 'Active', archived: { $ne: true } }).select('propFirm').lean()
+      : inMemoryData.accounts.find((item) => item.user === userId && item.name === accountName && item.status === 'Active' && !item.archived);
     if (!account) {
       return res.status(400).json({ message: 'Choose an active account that belongs to your profile.' });
     }

@@ -57,6 +57,7 @@ const AccountSection = ({
   formatCurrency,
   deleteAccount,
   updateAccountField,
+  setAccountArchived,
   showAccountForm,
   setShowAccountForm,
   confirmDelete,
@@ -65,9 +66,10 @@ const AccountSection = ({
   trades = [],
 }) => {
   const [sortBy, setSortBy] = useState('name.asc');
+  const [showArchived, setShowArchived] = useState(false);
   const computedProfit = getProfitAmount(accountForm.balance, accountForm.startingBalance);
   const computedProfitPercent = getProfitPercent(accountForm.fundedAmount, accountForm.balance, accountForm.startingBalance);
-  const sortedAccounts = sortRows(accounts, sortBy);
+  const sortedAccounts = sortRows(accounts.filter((account) => Boolean(account.archived) === showArchived), sortBy);
 
   const handleFieldChange = (field, value) => {
     if (typeof updateAccountField === 'function') {
@@ -89,8 +91,11 @@ const AccountSection = ({
   return (
     <section id="accounts" className="section-block">
       <div className="section-head">
-        <h2>Current Accounts</h2>
+        <h2>{showArchived ? 'Archived Accounts' : 'Current Accounts'}</h2>
         <div className="section-actions">
+          <button type="button" className="secondary-btn" onClick={() => setShowArchived((value) => !value)}>
+            {showArchived ? 'Current accounts' : `Archive (${accounts.filter((account) => account.archived).length})`}
+          </button>
           <SortControl value={sortBy} options={accountSortOptions} onChange={setSortBy} label="Sort accounts" />
           <button
             type="button"
@@ -227,7 +232,7 @@ const AccountSection = ({
         </div>
       )}
 
-      {!isLoading && !accounts.some((account) => account.status === 'Active') && (
+      {!isLoading && !showArchived && !accounts.some((account) => account.status === 'Active' && !account.archived) && (
         <p className="empty-state">No active accounts yet. Add an account to start tracking your portfolio.</p>
       )}
 
@@ -259,10 +264,16 @@ const AccountSection = ({
               <div><label>Max daily loss</label><p>{account.maxDailyLoss}%</p></div>
               <div><label>Max overall loss</label><p>{account.maxOverallLoss}%</p></div>
               <div><label>Profit target</label><p>{account.profitTarget}%</p></div>
+              {!['Instant', 'Funded'].includes(account.type || 'Instant') && Number(account.profitTarget) > 0 && (
+                <div><label>Challenge result</label><p>{getProfitPercent(account.fundedAmount, account.balance, account.startingBalance) >= Number(account.profitTarget) ? 'Target reached · Passed' : 'In progress'}</p></div>
+              )}
               <div><label>Next payout date</label><p>{account.nextPayoutDate}</p></div>
               <div><label>Payout received</label><p>{formatCurrency(account.payoutReceived)}</p></div>
             </div>
             <div className="row-actions">
+              <button className="secondary-btn" type="button" onClick={() => setAccountArchived(account, !account.archived)}>
+                {account.archived ? 'Restore account' : 'Archive account'}
+              </button>
               <SharePanel
                 items={[
                   accountShareItem(account, formatCurrency, trades.filter((trade) => trade.account === account.name)),

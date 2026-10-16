@@ -4,6 +4,7 @@ const SummaryCards = ({ stats, formatCurrency, isLoading = false, loadingSection
   const cards = [
     ['Total Accounts', stats.totalAccounts, ['accounts']],
     ['Active Accounts', stats.activeAccounts, ['accounts']],
+    ['Challenges Passed', stats.challengePassed, ['accounts']],
     ['Total Funding', formatCurrency(stats.totalFunding), ['accounts']],
     ['Challenge Capital', formatCurrency(stats.challengeFunding), ['accounts']],
     ['Estimated Monthly Return', formatCurrency(stats.monthlyReturn), ['accounts']],
