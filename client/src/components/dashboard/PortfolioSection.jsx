@@ -25,8 +25,10 @@ const PortfolioSection = ({ accounts = [], plannedAccounts = [], formatCurrency,
     return {
       firm,
       accountCount: firmAccounts.length,
-      fundedAmount: firmAccounts.reduce((total, account) => total + Number(account.fundedAmount || 0), 0),
-      balance: activeAccounts.reduce((total, account) => total + Number(account.balance || 0), 0),
+      fundedAmount: firmAccounts.filter((account) => ['Instant', 'Funded'].includes(account.type || 'Instant')).reduce((total, account) => total + Number(account.fundedAmount || 0), 0),
+      challengeAmount: firmAccounts.filter((account) => !['Instant', 'Funded'].includes(account.type || 'Instant')).reduce((total, account) => total + Number(account.fundedAmount || 0), 0),
+      balance: activeAccounts.filter((account) => ['Instant', 'Funded'].includes(account.type || 'Instant')).reduce((total, account) => total + Number(account.balance || 0), 0),
+      challengeBalance: activeAccounts.filter((account) => !['Instant', 'Funded'].includes(account.type || 'Instant')).reduce((total, account) => total + Number(account.balance || 0), 0),
       profit: firmAccounts.reduce((total, account) => total + (Number(account.balance || 0) - Number(account.startingBalance || 0)), 0),
     };
   });
@@ -70,7 +72,9 @@ const PortfolioSection = ({ accounts = [], plannedAccounts = [], formatCurrency,
               <p>{summary.accountCount} {summary.accountCount === 1 ? 'account' : 'accounts'}</p>
               <div className="portfolio-metrics">
                 <span>Funded</span><strong>{formatCurrency(summary.fundedAmount)}</strong>
+                <span>Challenge capital</span><strong>{formatCurrency(summary.challengeAmount)}</strong>
                 <span>Active balance</span><strong>{formatCurrency(summary.balance)}</strong>
+                <span>Challenge balance</span><strong>{formatCurrency(summary.challengeBalance)}</strong>
                 <span>Profit</span><strong>{formatCurrency(summary.profit)}</strong>
               </div>
             </div>

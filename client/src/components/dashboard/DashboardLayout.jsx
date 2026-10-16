@@ -155,6 +155,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
     totalAccounts: dashboardData?.stats?.totalAccounts || dashboardData?.accounts?.length || 0,
     activeAccounts: dashboardData?.stats?.activeAccounts || 0,
     totalFunding: dashboardData?.stats?.totalFunding || 0,
+    challengeFunding: dashboardData?.stats?.challengeFunding || 0,
     totalProfit: dashboardData?.stats?.totalProfit || 0,
     totalPayouts: dashboardData?.stats?.totalPayouts || 0,
     failedAccounts: dashboardData?.stats?.failedAccounts || 0,
@@ -173,7 +174,7 @@ const DashboardLayout = ({ user, dashboardData, onLogout, onRefresh, theme, onTo
   const monthlyReturnByAccount = useMemo(() => {
     const parsedPercentage = Number(monthlyReturnPercent);
     const percentage = Number.isFinite(parsedPercentage) ? parsedPercentage : 0;
-    return activeAccounts.map((account) => {
+    return activeAccounts.filter((account) => ['Instant', 'Funded'].includes(account.type || 'Instant')).map((account) => {
       const parsedFundedAmount = Number(account.fundedAmount);
       const fundedAmount = Number.isFinite(parsedFundedAmount) ? parsedFundedAmount : 0;
       const monthlyReturn = Number((fundedAmount * percentage / 100).toFixed(2));

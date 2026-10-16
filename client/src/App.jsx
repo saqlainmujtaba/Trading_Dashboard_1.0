@@ -28,6 +28,7 @@ const createEmptyDashboardData = () => ({
     totalAccounts: 0,
     activeAccounts: 0,
     totalFunding: 0,
+    challengeFunding: 0,
     plannedFunding: 0,
     combinedFunding: 0,
     totalProfit: 0,

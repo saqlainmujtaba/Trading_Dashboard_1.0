@@ -135,14 +135,17 @@ const AccountSection = ({
                 <FormField label="Prop firm" hint="Name of the prop firm you are trading with">
                   <input value={accountForm.propFirm} onChange={(e) => setAccountForm({ ...accountForm, propFirm: e.target.value })} placeholder="e.g. FundedSquad" />
                 </FormField>
-                <FormField label="Account type" hint="Challenge type or model type">
+                <FormField label="Account stage" hint="Challenge phases stay separate from funded capital">
                   <select value={accountForm.type} onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}>
                     <option>Instant</option>
+                    <option>Challenge Phase 1</option>
+                    <option>Challenge Phase 2</option>
+                    <option>Funded</option>
                     <option>2-Step</option>
                     <option>Evaluation</option>
                   </select>
                 </FormField>
-                <FormField label="Funded amount" hint="Total account size provided by the prop firm">
+                <FormField label="Account size" hint="Challenge size remains separate until the account reaches funded stage">
                   <input type="number" value={accountForm.fundedAmount} onChange={(e) => handleFieldChange('fundedAmount', Number(e.target.value))} placeholder="50000" />
                 </FormField>
                 <FormField label="Starting balance" hint="Your account balance when the challenge started">

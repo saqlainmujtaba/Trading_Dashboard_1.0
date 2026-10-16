@@ -20,6 +20,7 @@ export const buildMonthlyPayoutSummary = ({ accounts, payouts, month, currentMon
 
   return accounts
     .filter((account) => {
+      if (!['Instant', 'Funded'].includes(account.type || 'Instant')) return false;
       if (String(account.status || '').trim().toLowerCase() !== 'active') return false;
       const startMonth = getMonthKey(account.purchaseDate) || getMonthKey(account.createdAt);
       if (startMonth) return startMonth <= month;

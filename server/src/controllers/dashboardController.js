@@ -38,6 +38,14 @@ const calculateProfitPercent = ({ fundedAmount, balance, startingBalance }) => {
   return funded ? Number(((profit / funded) * 100).toFixed(2)) : 0;
 };
 
+// Instant accounts start funded. Evaluation and challenge phases only become
+// funded after the user advances the account to the Funded type.
+const isFundedAccount = (account) => ['Instant', 'Funded'].includes(account.type || 'Instant');
+const getFundingTotals = (accounts) => ({
+  totalFunding: accounts.filter(isFundedAccount).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
+  challengeFunding: accounts.filter((account) => !isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
+});
+
 const calculateTradePnl = ({ entryPrice, exitPrice, lotSize, buySell, pair }) => {
   const direction = buySell === 'Sell' ? -1 : 1;
   const normalizedPair = String(pair || '').toUpperCase().replace('/', '');
@@ -142,9 +150,9 @@ const buildDashboardPayload = (userId) => {
     stats: {
       totalAccounts: accounts.length,
       activeAccounts: accounts.filter((account) => account.status === 'Active').length,
-      totalFunding: accounts.reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
+      ...getFundingTotals(accounts),
       plannedFunding: plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0),
-      combinedFunding: accounts.filter((account) => account.status !== 'Failed').reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0) + plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0),
+      combinedFunding: accounts.filter((account) => account.status !== 'Failed' && isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
       totalProfit: trades.reduce((sum, trade) => sum + (Number(trade.pnl) || 0), 0),
       totalPayouts: payouts.reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0),
       failedAccounts: accounts.filter((account) => account.status === 'Failed').length,
@@ -253,7 +261,7 @@ export const getDashboardData = async (req, res) => {
       Payout.find({ user: userId }).sort({ date: -1 }),
     ]);
 
-    const totalFunding = accounts.reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0);
+    const { totalFunding, challengeFunding } = getFundingTotals(accounts);
     const plannedFunding = plannedAccounts.reduce((sum, account) => sum + (Number(account.size) || 0), 0);
     const totalProfit = trades.reduce((sum, trade) => sum + (Number(trade.pnl) || 0), 0);
     const totalPayouts = payouts.reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0);
@@ -267,8 +275,9 @@ export const getDashboardData = async (req, res) => {
         totalAccounts: accounts.length,
         activeAccounts: accounts.filter((account) => account.status === 'Active').length,
         totalFunding,
+        challengeFunding,
         plannedFunding,
-        combinedFunding: accounts.filter((account) => account.status !== 'Failed').reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0) + plannedFunding,
+        combinedFunding: accounts.filter((account) => account.status !== 'Failed' && isFundedAccount(account)).reduce((sum, account) => sum + (Number(account.fundedAmount) || 0), 0),
         totalProfit,
         totalPayouts,
         failedAccounts: accounts.filter((account) => account.status === 'Failed').length,
