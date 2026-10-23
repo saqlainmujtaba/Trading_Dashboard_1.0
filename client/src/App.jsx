@@ -8,9 +8,11 @@ import TourGuide from './components/common/TourGuide';
 import SharePublicRoute from './components/common/SharePublicRoute';
 import AdminPage from './components/dashboard/AdminPage';
 import CommunityPage from './components/dashboard/CommunityPage';
+import { sendDueTradeReminders } from './utils/tradeReminders';
 
 const TradeAnalyticsPage = lazy(() => import('./components/dashboard/TradeAnalyticsPage'));
 const CalculatorPage = lazy(() => import('./components/dashboard/CalculatorPage'));
+const AccountActivityPage = lazy(() => import('./components/dashboard/AccountActivityPage'));
 const dashboardSections = ['accounts', 'planned', 'trades', 'payouts'];
 
 const getInitialTheme = () => {
@@ -114,6 +116,18 @@ const App = () => {
       activityEvents.forEach((eventName) => window.removeEventListener(eventName, markActivity));
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const checkReminders = () => sendDueTradeReminders({
+      accounts: dashboardData.accounts,
+      trades: dashboardData.trades,
+      userId: user._id || user.id,
+    });
+    checkReminders();
+    const intervalId = window.setInterval(checkReminders, 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [user, dashboardData.accounts, dashboardData.trades]);
 
   const toggleTheme = () => setTheme((current) => (current === 'light' ? 'dark' : 'light'));
 
@@ -306,6 +320,31 @@ const App = () => {
             <Navigate to="/" replace />
           )
         }
+      />
+      <Route
+        path="/account-activity"
+        element={user ? (
+          <Suspense fallback={(
+            <DashboardLayout
+              user={user}
+              dashboardData={dashboardData}
+              onRefresh={loadDashboardData}
+              onLogout={handleLogout}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              isLoading
+              loadingSections={loadingSections}
+            />
+          )}>
+            <AccountActivityPage
+              user={user}
+              dashboardData={dashboardData}
+              onLogout={handleLogout}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+            />
+          </Suspense>
+        ) : <Navigate to="/" replace />}
       />
       <Route
         path="/profile"
